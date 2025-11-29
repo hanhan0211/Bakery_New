@@ -234,8 +234,6 @@ const ProductDetailPage = () => {
                                 <Link to={`/san-pham?category=${product.category._id}`}>{product.category.name}</Link>
                             </span>
                         )}
-                        {/* ✅ LUÔN HIỂN THỊ CÒN HÀNG (BỎ CHECK STOCK) */}
-                      
                     </div>
 
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 font-serif leading-tight">{product.name}</h1>
@@ -257,34 +255,72 @@ const ProductDetailPage = () => {
                         {product.description || "Đang cập nhật mô tả cho chiếc bánh thơm ngon này..."}
                     </p>
 
-                    <div className="flex flex-col sm:flex-row gap-4 mb-8 pt-8 border-t border-gray-100">
+                    {/* ✅ HIỂN THỊ TRẠNG THÁI KHO (Dùng biến 'stock' cho đúng với Admin) */}
+                    <div className="mb-6">
+                        {product.stock > 0 ? (
+                            <div className="flex items-center gap-2 text-green-600 font-medium bg-green-50 px-3 py-1 rounded-lg w-fit">
+                                <Check size={18} /> 
+                                <span>Còn hàng (<b>{product.stock}</b> sản phẩm)</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2 text-red-500 font-medium bg-red-50 px-3 py-1 rounded-lg w-fit">
+                                <ShieldCheck size={18} /> 
+                                <span>Tạm hết hàng</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-4 mb-8 pt-4 border-t border-gray-100">
+                        {/* 1. Nút tăng giảm số lượng */}
                         <div className="flex items-center border border-gray-300 rounded-xl w-fit bg-white h-12 shadow-sm">
                             <button 
                                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                className="px-4 h-full hover:bg-gray-100 text-gray-600 transition-colors flex items-center justify-center rounded-l-xl"
+                                disabled={product.stock === 0}
+                                className="px-4 h-full hover:bg-gray-100 text-gray-600 transition-colors flex items-center justify-center rounded-l-xl disabled:opacity-50"
                             >
                                 <Minus size={16} />
                             </button>
-                            <span className="w-12 text-center font-bold text-lg">{quantity}</span>
+                            
+                            <span className="w-12 text-center font-bold text-lg text-gray-800">
+                                {product.stock === 0 ? 0 : quantity}
+                            </span>
+                            
                             <button 
-                                onClick={() => setQuantity(quantity + 1)}
-                                className="px-4 h-full hover:bg-gray-100 text-gray-600 transition-colors flex items-center justify-center rounded-r-xl"
+                                onClick={() => {
+                                    // ✅ Logic chặn không cho tăng quá stock
+                                    if (quantity < product.stock) {
+                                        setQuantity(quantity + 1);
+                                    } else {
+                                        alert(`Xin lỗi, chỉ còn ${product.stock} sản phẩm trong kho!`);
+                                    }
+                                }}
+                                // Disable nút cộng nếu đã đạt giới hạn hoặc hết hàng
+                                disabled={quantity >= product.stock || product.stock === 0}
+                                className={`px-4 h-full flex items-center justify-center rounded-r-xl transition-colors
+                                    ${quantity >= product.stock 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'hover:bg-gray-100 text-gray-600'
+                                    }`}
                             >
                                 <Plus size={16} />
                             </button>
                         </div>
                         
-                        {/* ✅ NÚT THÊM VÀO GIỎ HÀNG (LUÔN SÁNG, KHÔNG CHECK HẾT HÀNG) */}
+                        {/* 2. Nút Thêm vào giỏ hàng */}
                         <button 
                             onClick={handleAddToCart}
-                            disabled={addingToCart} // Chỉ disable khi đang gọi API
-                            className={`flex-1 font-bold py-3 px-8 rounded-xl shadow-lg shadow-pink-200 flex items-center justify-center gap-2 transition-all transform active:scale-[0.98] h-12 
-                                ${addingToCart 
-                                    ? 'bg-gray-400 text-white cursor-not-allowed' 
-                                    : 'bg-pink-600 text-white hover:bg-pink-700'
+                            disabled={addingToCart || product.stock === 0} 
+                            className={`flex-1 font-bold py-3 px-8 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform h-12 
+                                ${product.stock === 0
+                                    ? 'bg-gray-400 text-white cursor-not-allowed shadow-none' // Style khi hết hàng
+                                    : addingToCart 
+                                        ? 'bg-pink-400 text-white cursor-wait' 
+                                        : 'bg-pink-600 text-white hover:bg-pink-700 shadow-pink-200 active:scale-[0.98]'
                                 }`}
                         >
-                            {addingToCart ? (
+                            {product.stock === 0 ? (
+                                <>HẾT HÀNG</>
+                            ) : addingToCart ? (
                                 <>
                                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                     Đang xử lý...
