@@ -19,6 +19,7 @@ import {
 import HomePage from "./pages/HomePage";
 import ProductPage from "./pages/ProductPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
+import CartPage from "./pages/CartPage"; // ✅ ĐÃ THÊM IMPORT NÀY
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -82,7 +83,7 @@ function App() {
 
   return (
     <div className="font-sans text-gray-800 bg-gray-50 min-h-screen">
-      {/* Navbar giống hệt của bạn */}
+      {/* Navbar */}
       <nav className="bg-white/90 backdrop-blur-md sticky top-0 z-50 shadow-sm border-b border-pink-100">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <Link to="/" className="text-2xl font-bold text-pink-600 flex items-center gap-2">
@@ -95,12 +96,13 @@ function App() {
           </div>
 
           <div className="flex items-center space-x-6">
-            <button className="relative hover:text-pink-600 transition">
+            {/* ✅ Sửa thẻ button thành Link để bấm vào icon giỏ hàng là chuyển trang */}
+            <Link to="/cart" className="relative hover:text-pink-600 transition">
               <ShoppingCart className="w-6 h-6" />
               <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">
                 0
               </span>
-            </button>
+            </Link>
 
             <div className="relative group py-2">
               <button className="hover:text-pink-600 transition flex items-center gap-2">
@@ -164,6 +166,9 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/san-pham" element={<ProductPage />} />
         <Route path="/san-pham/:slug" element={<ProductDetailPage />} />
+        
+        {/* Route Giỏ hàng */}
+        <Route path="/cart" element={<CartPage />} />
 
         <Route path="/login" element={<Login setCurrentUser={setCurrentUser} />} />
         <Route path="/register" element={<Register />} />

@@ -4,22 +4,25 @@ import {
     listProducts, 
     deleteProduct, 
     getProductBySlug,
-    getProduct 
+    getProduct,
+    updateProduct
 } from "../controllers/product.controller.js";
+
+import { uploadFiles } from "../middleware/upload.js"; // file bạn vừa tạo
 
 const router = express.Router();
 
-// --- PUBLIC ROUTES (Test mode: Không cần login) ---
+// --- PUBLIC ROUTES ---
 
-// Lấy danh sách
 router.get("/", listProducts);
-
-// Lấy chi tiết
 router.get("/:id", getProduct);
 router.get("/slug/:slug", getProductBySlug);
 
-// Tạo mới sản phẩm (POST /api/products)
-router.post("/", createProduct); 
+// Tạo mới sản phẩm (POST) + upload nhiều ảnh
+router.post("/", uploadFiles.array("images"), createProduct);
+
+// Cập nhật sản phẩm (PUT) + upload nhiều ảnh
+router.put("/:id", uploadFiles.array("images"), updateProduct);
 
 // Xóa sản phẩm
 router.delete("/:id", deleteProduct);
