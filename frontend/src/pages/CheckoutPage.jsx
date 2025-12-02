@@ -58,9 +58,7 @@ const CheckoutPage = () => {
 
         setLoading(true);
 
-        // --- CẤU TRÚC DỮ LIỆU ĐÃ SỬA LẠI ---
         const orderData = {
-            // 👇 QUAN TRỌNG: Đổi tên key từ 'items' thành 'orderItems' để khớp Controller Backend
             orderItems: items.map(item => ({
                 product: item.product._id || item.product,
                 name: item.name,
@@ -75,7 +73,7 @@ const CheckoutPage = () => {
                 addressLine: shippingInfo.addressLine,
                 city: shippingInfo.city || 'Việt Nam' 
             },
-            paymentMethod: paymentMethod, // 'cod' hoặc 'card'
+            paymentMethod: paymentMethod, 
             itemsPrice: total,
             shippingPrice: 0,
             taxPrice: 0,
@@ -83,24 +81,25 @@ const CheckoutPage = () => {
         };
 
         try {
-            // Log ra console để kiểm tra dữ liệu trước khi gửi
             console.log("Sending Order Data:", orderData);
 
             const res = await axios.post('http://localhost:5000/api/orders', orderData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
-            // Xử lý sau khi đặt hàng thành công
-            alert("Đặt hàng thành công!");
-            
-            // TODO: Bạn cần thêm logic xóa giỏ hàng ở đây sau khi đặt thành công
-            // Ví dụ: dispatch(clearCart()) hoặc gọi API xóa giỏ hàng
-            
-            navigate('/'); // Chuyển về trang chủ hoặc trang quản lý đơn hàng
+            // ✅ SỬA Ở ĐÂY: Kiểm tra và chuyển hướng
+            if (res.status === 201) {
+                const newOrderId = res.data._id; // Lấy ID đơn hàng từ Backend trả về
+                
+                alert("Đặt hàng thành công!");
+                
+                // ✅ Chuyển hướng sang trang chi tiết đơn hàng
+                navigate(`/order/${newOrderId}`);
+            }
+
         } catch (err) {
             console.error("Lỗi đặt hàng:", err);
-            // Hiển thị thông báo lỗi chi tiết từ Backend trả về
-            alert(err.response?.data?.message || "Có lỗi xảy ra khi tạo đơn hàng (Lỗi 400/500).");
+            alert(err.response?.data?.message || "Có lỗi xảy ra khi tạo đơn hàng.");
         } finally {
             setLoading(false);
         }

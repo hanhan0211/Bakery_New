@@ -14,13 +14,18 @@ import {
   UserPlus,
   LogOut,
   LayoutDashboard,
+  Package // ✅ Thêm icon Package
 } from "lucide-react";
 
 import HomePage from "./pages/HomePage";
 import ProductPage from "./pages/ProductPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import CartPage from "./pages/CartPage"; 
-import CheckoutPage from "./pages/CheckoutPage";// ✅ ĐÃ THÊM IMPORT NÀY
+import CheckoutPage from "./pages/CheckoutPage";
+
+// ✅ THÊM 2 TRANG NÀY
+import MyOrdersPage from "./pages/MyOrdersPage";
+import OrderDetailPage from "./pages/OrderDetailPage";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -55,7 +60,7 @@ function App() {
         const user = JSON.parse(stored);
         setCurrentUser(user);
 
-        // ✅ Nếu là admin và đang ở /login hoặc /register, redirect sang /admin
+        // Nếu là admin và đang ở /login hoặc /register, redirect sang /admin
         if (user.role === "admin" && (location.pathname === "/login" || location.pathname === "/register")) {
           navigate("/admin", { replace: true });
         }
@@ -97,7 +102,6 @@ function App() {
           </div>
 
           <div className="flex items-center space-x-6">
-            {/* ✅ Sửa thẻ button thành Link để bấm vào icon giỏ hàng là chuyển trang */}
             <Link to="/cart" className="relative hover:text-pink-600 transition">
               <ShoppingCart className="w-6 h-6" />
               <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">
@@ -137,6 +141,12 @@ function App() {
                         </Link>
                       )}
 
+                      {/* ✅ LINK XEM ĐƠN HÀNG */}
+                      <Link to="/my-orders" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-pink-50 hover:text-pink-600 rounded-lg transition">
+                        <Package size={18} />
+                        <span>Đơn hàng của tôi</span>
+                      </Link>
+
                       <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition">
                         <LogOut size={18} />
                         <span>Đăng xuất</span>
@@ -167,7 +177,11 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/san-pham" element={<ProductPage />} />
         <Route path="/san-pham/:slug" element={<ProductDetailPage />} />
+        
+        {/* ✅ ROUTE THANH TOÁN & ĐƠN HÀNG */}
         <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/my-orders" element={<MyOrdersPage />} />
+        <Route path="/order/:id" element={<OrderDetailPage />} />
         
         {/* Route Giỏ hàng */}
         <Route path="/cart" element={<CartPage />} />
