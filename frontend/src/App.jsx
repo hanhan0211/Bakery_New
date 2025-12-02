@@ -34,6 +34,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
 import ProductManager from "./pages/admin/ProductManager";
 import CategoryManager from "./pages/admin/CategoryManager";
+import OrderManager from "./pages/admin/OrderManager";
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -141,11 +142,12 @@ function App() {
                         </Link>
                       )}
 
-                      {/* ✅ LINK XEM ĐƠN HÀNG */}
+                      {currentUser.role !== "admin" &&(
                       <Link to="/my-orders" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-pink-50 hover:text-pink-600 rounded-lg transition">
                         <Package size={18} />
                         <span>Đơn hàng của tôi</span>
                       </Link>
+                      )}
 
                       <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition">
                         <LogOut size={18} />
@@ -193,6 +195,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="products" element={<ProductManager />} />
           <Route path="categories" element={<CategoryManager />} />
+          <Route path="orders" element={<OrderManager />} />
         </Route>
 
         <Route path="*" element={<div className="text-center py-20">404 - Không tìm thấy trang</div>} />

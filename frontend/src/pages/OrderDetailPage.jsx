@@ -14,6 +14,10 @@ const OrderDetailPage = () => {
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    // ✅ THÊM: Lấy thông tin user hiện tại để biết là Admin hay Khách
+    const currentUser = JSON.parse(localStorage.getItem("USER_INFO") || "{}");
+    const isAdmin = currentUser?.role === 'admin';
+
     useEffect(() => {
         const fetchOrder = async () => {
             const token = localStorage.getItem("ACCESS_TOKEN");
@@ -34,7 +38,6 @@ const OrderDetailPage = () => {
     if (loading) return <div className="flex justify-center py-20"><Loader className="animate-spin text-pink-500 w-10 h-10" /></div>;
     if (!order) return <div className="text-center py-20 text-gray-500">Không tìm thấy đơn hàng</div>;
 
-    // Helper trạng thái
     const statusConfig = {
         pending: { label: 'Đang xử lý', color: 'bg-yellow-100 text-yellow-800' },
         completed: { label: 'Giao thành công', color: 'bg-green-100 text-green-700' },
@@ -44,9 +47,14 @@ const OrderDetailPage = () => {
 
     return (
         <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen font-sans">
-            {/* Nút quay lại */}
-            <Link to="/my-orders" className="inline-flex items-center gap-2 text-gray-500 hover:text-pink-600 mb-6 font-medium transition-colors">
-                <ChevronLeft size={20} /> Quay lại danh sách
+            
+            {/* ✅ SỬA NÚT QUAY LẠI: Kiểm tra isAdmin để điều hướng đúng */}
+            <Link 
+                to={isAdmin ? "/admin/orders" : "/my-orders"} 
+                className="inline-flex items-center gap-2 text-gray-500 hover:text-pink-600 mb-6 font-medium transition-colors"
+            >
+                <ChevronLeft size={20} /> 
+                {isAdmin ? "Quay lại quản lý đơn hàng" : "Quay lại danh sách đơn hàng"}
             </Link>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-5xl mx-auto">
@@ -70,7 +78,7 @@ const OrderDetailPage = () => {
 
                 <div className="p-6 grid lg:grid-cols-3 gap-8">
                     
-                    {/* CỘT TRÁI: THÔNG TIN (Chiếm 1 phần) */}
+                    {/* CỘT TRÁI: THÔNG TIN */}
                     <div className="lg:col-span-1 space-y-6">
                         {/* Địa chỉ */}
                         <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
@@ -105,14 +113,13 @@ const OrderDetailPage = () => {
                                     {order.paymentMethod === 'cod' ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản / Thẻ'}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                    {/* Trạng thái thanh toán - Backend bạn chưa có trường isPaid nhưng mình để placeholder */}
                                     Trạng thái: {order.status === 'completed' ? <span className="text-green-600 font-bold">Đã thanh toán</span> : <span className="text-yellow-600">Chưa thanh toán</span>}
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    {/* CỘT PHẢI: SẢN PHẨM (Chiếm 2 phần) */}
+                    {/* CỘT PHẢI: SẢN PHẨM */}
                     <div className="lg:col-span-2">
                         <h3 className="font-bold text-gray-800 mb-4 text-lg">Sản phẩm ({order.items.length})</h3>
                         
@@ -151,12 +158,6 @@ const OrderDetailPage = () => {
                                 <span>Phí vận chuyển:</span>
                                 <span>{order.shippingPrice === 0 ? 'Miễn phí' : order.shippingPrice?.toLocaleString() + 'đ'}</span>
                             </div>
-                            {order.taxPrice > 0 && (
-                                <div className="flex justify-between text-gray-600 text-sm">
-                                    <span>Thuế:</span>
-                                    <span>{order.taxPrice.toLocaleString()}đ</span>
-                                </div>
-                            )}
                             <div className="border-t border-dashed border-gray-300 my-2 pt-3 flex justify-between items-end">
                                 <span className="font-bold text-gray-800 text-lg">Tổng cộng:</span>
                                 <span className="text-2xl font-bold text-pink-600">{order.totalPrice?.toLocaleString()}đ</span>
