@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader, Filter, ChevronDown, Banknote } from 'lucide-react'; // Đổi icon Chevron
+import { Search, Loader, Filter, ChevronDown, Banknote, Coffee } from 'lucide-react'; // ✅ Thêm icon Coffee
 import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+
+// ✅ Danh sách các vị bánh (Khớp với Backend)
+const FLAVORS = ['Vani', 'Socola', 'Dâu', 'Matcha', 'Phô mai', 'Trái cây', 'Cà phê', 'Khác'];
 
 const getImageUrl = (path) => {
     if (!path) return 'https://via.placeholder.com/400x400?text=No+Image';
@@ -10,13 +13,13 @@ const getImageUrl = (path) => {
 };
 
 const ProductPage = () => {
-    const [products, setProducts] = useState([]); // Danh sách sản phẩm tích lũy
+    const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
     
     // State quản lý Load More
-    const [page, setPage] = useState(1); // Trang hiện tại (Internal State)
-    const [hasMore, setHasMore] = useState(true); // Còn dữ liệu để load không?
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
 
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -24,6 +27,7 @@ const ProductPage = () => {
     const maxPriceFilter = parseInt(searchParams.get("maxPrice")) || 1000000;
     const categoryId = searchParams.get("category") || "";
     const searchTerm = searchParams.get("q") || "";
+    const flavorFilter = searchParams.get("flavor") || ""; // ✅ Lấy filter flavor
 
     // 1. Load Categories
     useEffect(() => {
@@ -32,16 +36,14 @@ const ProductPage = () => {
             .catch(err => console.log(err));
     }, []);
 
-    // 2. Reset khi thay đổi bộ lọc (Search, Category, Price)
-    // Khi lọc, ta phải quay về trang 1 và xóa sạch list cũ
+    // 2. Reset khi thay đổi bộ lọc
     useEffect(() => {
         setProducts([]);
         setPage(1);
         setHasMore(true);
-        // Gọi hàm fetch ngay lập tức hoặc để useEffect dưới xử lý
-    }, [maxPriceFilter, categoryId, searchTerm]);
+    }, [maxPriceFilter, categoryId, searchTerm, flavorFilter]); // ✅ Thêm flavorFilter
 
-    // 3. Load Products (Chạy khi page thay đổi hoặc bộ lọc thay đổi)
+    // 3. Load Products
     useEffect(() => {
         const fetchProducts = async () => {
             try {
@@ -50,23 +52,21 @@ const ProductPage = () => {
                 const params = {
                     q: searchTerm || undefined,
                     category: categoryId || undefined,
-                    page: page, // Dùng state page
-                    limit: 6,   // Mỗi lần bấm xem thêm tải 9 cái
+                    flavor: flavorFilter || undefined, // ✅ Gửi flavor lên server
+                    page: page, 
+                    limit: 9,  
                     maxPrice: maxPriceFilter < 1000000 ? maxPriceFilter : undefined
                 };
 
                 const res = await axios.get("http://localhost:5000/api/products", { params });
                 const newItems = res.data.items || [];
 
-                // --- 🌟 LOGIC QUAN TRỌNG: NỐI MẢNG ---
                 if (page === 1) {
-                    setProducts(newItems); // Nếu trang 1 (mới lọc) -> Thay thế hoàn toàn
+                    setProducts(newItems);
                 } else {
-                    setProducts(prev => [...prev, ...newItems]); // Nếu trang > 1 -> Nối thêm vào đuôi
+                    setProducts(prev => [...prev, ...newItems]);
                 }
 
-                // Kiểm tra xem còn trang sau không
-                // Nếu số trang hiện tại >= tổng số trang trả về -> Hết hàng để load
                 if (page >= res.data.pages || newItems.length === 0) {
                     setHasMore(false);
                 } else {
@@ -80,10 +80,9 @@ const ProductPage = () => {
             }
         };
 
-        // Debounce nhẹ
         const t = setTimeout(fetchProducts, 300);
         return () => clearTimeout(t);
-    }, [page, maxPriceFilter, categoryId, searchTerm]); 
+    }, [page, maxPriceFilter, categoryId, searchTerm, flavorFilter]); 
 
 
     // --- HANDLERS ---
@@ -98,6 +97,16 @@ const ProductPage = () => {
         });
     };
 
+    // ✅ Hàm chọn Vị
+    const handleFlavorChange = (flavor) => {
+        setSearchParams(prev => { 
+            // Nếu bấm lại vào vị đang chọn -> Bỏ chọn
+            if (flavor === flavorFilter) prev.delete("flavor");
+            else prev.set("flavor", flavor); 
+            return prev; 
+        });
+    };
+
     const handleSearch = (e) => {
         const val = e.target.value;
         setSearchParams(prev => { 
@@ -108,9 +117,8 @@ const ProductPage = () => {
 
     const clearFilters = () => setSearchParams({});
 
-    // Hàm bấm nút Xem thêm
     const handleLoadMore = () => {
-        setPage(prev => prev + 1); // Tăng page lên -> useEffect sẽ chạy lại và nối thêm data
+        setPage(prev => prev + 1);
     };
 
     const formatCurrency = (n) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -125,9 +133,11 @@ const ProductPage = () => {
             <div className="container mx-auto px-4 pb-16 flex-grow">
                 <div className="flex flex-col lg:flex-row gap-8">
                     
-                    {/* SIDEBAR (Giữ nguyên) */}
+                    {/* SIDEBAR */}
                     <aside className="w-full lg:w-1/4 space-y-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-pink-100 sticky top-4">
+                            
+                            {/* CATEGORIES */}
                             <div className="mb-8">
                                 <h3 className="font-bold text-xl mb-4 flex items-center gap-2"><Filter className="w-5 h-5 text-pink-500" /> Danh Mục</h3>
                                 <ul className="space-y-2">
@@ -145,6 +155,30 @@ const ProductPage = () => {
                                     ))}
                                 </ul>
                             </div>
+
+                            {/* ✅ FLAVOR FILTER (MỚI) */}
+                            <div className="mb-8 border-t border-gray-100 pt-6">
+                                <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
+                                    <Coffee className="w-5 h-5 text-pink-500" /> Hương Vị
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {FLAVORS.map(flavor => (
+                                        <button
+                                            key={flavor}
+                                            onClick={() => handleFlavorChange(flavor)}
+                                            className={`px-3 py-1.5 rounded-full text-sm border transition-all ${
+                                                flavor === flavorFilter
+                                                    ? "bg-pink-500 text-white border-pink-500 shadow-md transform scale-105"
+                                                    : "bg-white border-gray-200 text-gray-600 hover:border-pink-300 hover:text-pink-500"
+                                            }`}
+                                        >
+                                            {flavor}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* PRICE FILTER */}
                             <div>
                                 <h3 className="font-bold text-xl mb-6 flex items-center gap-2"><Banknote className="w-5 h-5 text-pink-500" /> Lọc Theo Giá</h3>
                                 <input type="range" min="0" max="1000000" step="10000" value={maxPriceFilter} onChange={handlePriceChange} className="w-full accent-pink-500 cursor-pointer" />
@@ -181,6 +215,9 @@ const ProductPage = () => {
                                                 {product.stock === 0 && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white font-bold uppercase">Hết hàng</div>}
                                             </div>
                                             <h3 className="font-bold text-lg mb-1 text-gray-800 group-hover:text-pink-600 transition line-clamp-1">{product.name}</h3>
+                                            <p className="text-gray-500 text-sm mb-1 line-clamp-1">
+                                                {product.flavor ? `Vị: ${product.flavor}` : (product.category?.name || 'Bánh ngọt')}
+                                            </p>
                                             <p className="text-pink-600 text-xl font-bold">{formatCurrency(product.price)}</p>
                                         </Link>
                                     );
@@ -188,7 +225,7 @@ const ProductPage = () => {
                             </div>
                         )}
 
-                        {/* ✅ NÚT XEM THÊM (LOAD MORE) */}
+                        {/* Nút Xem Thêm */}
                         <div className="mt-12 text-center">
                             {loading && (
                                 <div className="flex justify-center mb-4"><Loader className="w-8 h-8 animate-spin text-pink-500" /></div>

@@ -3,14 +3,13 @@ import { ShoppingCart, ChevronRight, Star, Heart, Clock, Truck, ShieldCheck } fr
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 
-// --- HELPER: Xử lý link ảnh ---
 const getImageUrl = (path) => {
     if (!path) return 'https://via.placeholder.com/500x500?text=No+Image';
     if (path.startsWith('http')) return path;
     return `http://localhost:5000${path}`;
 };
 
-// --- FOOTER COMPONENT ---
+// --- FOOTER COMPONENT (Giữ nguyên) ---
 const Footer = () => {
   return (
     <footer className="bg-gray-900 text-white pt-12 pb-6 mt-auto">
@@ -60,13 +59,11 @@ const HomePage = () => {
   useEffect(() => {
     const fetchData = async () => {
         try {
-            // 1. Gọi API lấy danh mục
             const cateRes = await axios.get('http://localhost:5000/api/categories');
             setCategories(cateRes.data);
 
-            // 2. Gọi API lấy sản phẩm mới nhất (limit=8)
-            const prodRes = await axios.get('http://localhost:5000/api/products?limit=8');
-            // Backend thường trả về { items: [...], total: ... }
+            // 👇👇👇 SỬA CHỖ NÀY: Thêm &featured=true 👇👇👇
+            const prodRes = await axios.get('http://localhost:5000/api/products?limit=8&featured=true');
             setFeaturedProducts(prodRes.data.items || []);
         } catch (error) {
             console.error("Lỗi khi tải dữ liệu:", error);
@@ -88,7 +85,7 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-white font-sans text-gray-800 flex flex-col">
       
-      {/* --- HERO BANNER --- */}
+      {/* HERO BANNER */}
       <section className="relative h-[600px] flex items-center">
         <div className="absolute inset-0">
           <img src="/assets/img/banner2.jpg" alt="Bakery Banner" className="w-full h-full object-cover" />
@@ -109,13 +106,12 @@ const HomePage = () => {
               <Link to="/san-pham" className="bg-pink-600 hover:bg-pink-700 text-white px-8 py-3 rounded-full font-bold transition flex items-center gap-2">
                 Đặt Bánh Ngay <ChevronRight size={20}/>
               </Link>
-              
             </div>
           </div>
         </div>
       </section>
 
-      {/* --- FEATURES --- */}
+      {/* FEATURES */}
       <section className="py-16 bg-pink-50">
         <div className="container mx-auto px-6">
           <div className="grid md:grid-cols-3 gap-8 text-center">
@@ -144,7 +140,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* --- CATEGORIES --- */}
+      {/* CATEGORIES */}
       <section className="py-20 container mx-auto px-6">
         <h2 className="text-3xl font-bold text-center mb-12">Khám Phá Danh Mục</h2>
         {categories.length > 0 ? (
@@ -168,13 +164,13 @@ const HomePage = () => {
         )}
       </section>
 
-      {/* --- BEST SELLERS --- */}
+      {/* --- BEST SELLERS (SẢN PHẨM NỔI BẬT) --- */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-6">
           <div className="flex justify-between items-end mb-10">
             <div>
               <h2 className="text-3xl font-bold text-gray-800">Sản Phẩm Nổi Bật</h2>
-              <p className="text-gray-500 mt-2">Những chiếc bánh được yêu thích nhất tuần qua</p>
+              <p className="text-gray-500 mt-2">Những chiếc bánh được đánh giá cao nhất (4 sao trở lên)</p>
             </div>
             <Link to="/san-pham" className="text-pink-600 font-semibold hover:underline hidden md:block">Xem tất cả &rarr;</Link>
           </div>
@@ -199,17 +195,39 @@ const HomePage = () => {
                   </div>
                   <h3 className="font-bold text-lg text-gray-800 mb-1 group-hover:text-pink-600 transition line-clamp-1">{product.name}</h3>
                   <p className="text-gray-500 text-sm mb-2">{product.category?.name || 'Bánh ngọt'}</p>
+                  
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-pink-600 text-lg">{product.price.toLocaleString()}đ</span>
-                    <div className="flex text-yellow-400 text-xs ml-auto">
-                      {[1,2,3,4,5].map(i => <Star key={i} size={12} fill="currentColor" />)}
+                    
+                    {/* 👇👇👇 SỬA CHỖ NÀY: Dùng số sao thật (avgRating) thay vì mảng tĩnh 👇👇👇 */}
+                    <div className="flex text-yellow-400 text-xs ml-auto items-center gap-1">
+                        <span className="text-gray-400 font-medium text-[10px]">({product.reviewCount || 0})</span>
+                        <div className="flex">
+                            {[1, 2, 3, 4, 5].map(i => (
+                                <Star 
+                                    key={i} 
+                                    size={12} 
+                                    // Tô màu nếu điểm >= i, ngược lại màu xám
+                                    fill={i <= (product.avgRating || 0) ? "currentColor" : "none"} 
+                                    className={i <= (product.avgRating || 0) ? "text-yellow-400" : "text-gray-300"}
+                                />
+                            ))}
+                        </div>
                     </div>
+                    {/* 👆👆👆 */}
+
                   </div>
                 </Link>
               ))}
             </div>
           ) : (
-            <p className="text-center text-gray-500">Chưa có sản phẩm nào.</p>
+            // Hiển thị khi không có bánh nào đạt chuẩn
+            <div className="text-center py-10 bg-gray-50 rounded-2xl">
+                <p className="text-gray-500 mb-4 text-lg">Chưa có sản phẩm nào đạt đánh giá cao tuần này.</p>
+                <Link to="/san-pham" className="bg-pink-100 text-pink-600 px-6 py-2 rounded-full font-bold hover:bg-pink-200 transition">
+                   Xem tất cả bánh
+                </Link>
+            </div>
           )}
         </div>
       </section>

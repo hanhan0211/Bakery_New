@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
-  Plus,
-  Edit,
-  Trash2,
-  X,
-  Loader,
-  Image as ImageIcon,
-  Upload,
-  AlertCircle,
+  Plus, Edit, Trash2, X, Loader, Image as ImageIcon, Upload, AlertCircle
 } from "lucide-react";
 
 // --- Axios config ---
@@ -23,9 +16,11 @@ axiosClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Format VNĐ
 const formatCurrency = (amount) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
+
+// ✅ DANH SÁCH VỊ (Phải khớp với Backend Model và Frontend ProductPage)
+const FLAVORS = ['Vani', 'Socola', 'Dâu', 'Matcha', 'Phô mai', 'Trái cây', 'Cà phê', 'Khác'];
 
 const ProductManager = () => {
   const [products, setProducts] = useState([]);
@@ -36,10 +31,9 @@ const ProductManager = () => {
   const [showModal, setShowModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-
   const [previewFile, setPreviewFile] = useState(null);
 
-  // ✅ 1. Thêm trường stock vào state form
+  // ✅ Thêm trường flavor vào state form
   const [formData, setFormData] = useState({
     _id: "",
     name: "",
@@ -47,18 +41,17 @@ const ProductManager = () => {
     description: "",
     price: 0,
     salePrice: 0,
-    stock: 0, // Số lượng tồn kho
+    stock: 0,
+    flavor: "Khác", // Mặc định
     category: "",
     images: [], 
   });
 
-  // --- Effects ---
   useEffect(() => {
     fetchProducts();
     fetchCategories();
   }, []);
 
-  // --- API Calls ---
   const fetchProducts = async () => {
     setLoading(true);
     setError(null);
@@ -114,14 +107,14 @@ const ProductManager = () => {
         finalImages = [{ url: imgUrl, alt: formData.name }];
       }
 
-      // ✅ 2. Gửi stock lên server
       const payload = {
         name: formData.name,
         slug: formData.slug || undefined,
         description: formData.description,
         price: Number(formData.price),
         salePrice: Number(formData.salePrice),
-        stock: Number(formData.stock), // Chuyển sang số
+        stock: Number(formData.stock),
+        flavor: formData.flavor, // ✅ Gửi flavor lên server
         category: formData.category,
         images: finalImages,
       };
@@ -147,8 +140,12 @@ const ProductManager = () => {
   const openAddModal = () => {
     setIsEdit(false);
     setPreviewFile(null);
-    // ✅ Reset stock về 0 khi thêm mới
-    setFormData({ _id: "", name: "", slug: "", description: "", price: 0, salePrice: 0, stock: 0, category: "", images: [] });
+    // Reset form
+    setFormData({ 
+        _id: "", name: "", slug: "", description: "", 
+        price: 0, salePrice: 0, stock: 0, 
+        flavor: "Khác", category: "", images: [] 
+    });
     setShowModal(true);
   };
 
@@ -162,7 +159,8 @@ const ProductManager = () => {
       description: product.description,
       price: product.price,
       salePrice: product.salePrice,
-      stock: product.stock || 0, // ✅ Lấy số lượng cũ hiển thị lên
+      stock: product.stock || 0,
+      flavor: product.flavor || "Khác", // ✅ Lấy flavor cũ
       category: product.category?._id || product.category,
       images: product.images || [],
     });
@@ -210,7 +208,8 @@ const ProductManager = () => {
                 <th className="p-4">Hình ảnh</th>
                 <th className="p-4">Tên sản phẩm</th>
                 <th className="p-4">Danh mục</th>
-                <th className="p-4">Kho</th> {/* ✅ Cột mới hiển thị Kho */}
+                <th className="p-4">Vị</th>
+                <th className="p-4">Số lượng</th>
                 <th className="p-4">Giá</th>
                 <th className="p-4 text-right">Hành động</th>
               </tr>
@@ -228,15 +227,14 @@ const ProductManager = () => {
                   <td className="p-4 font-medium">{p.name}</td>
                   <td className="p-4">{p.category?.name || "Chưa phân loại"}</td>
                   
-                  {/* ✅ Hiển thị số lượng tồn kho */}
+                  {/* ✅ Hiển thị Vị */}
                   <td className="p-4">
-                    {p.stock > 0 ? (
-                        <span className="text-green-600 font-bold">{p.stock}</span>
-                    ) : (
-                        <span className="text-red-500 bg-red-50 px-2 py-1 rounded text-xs font-bold">Hết hàng</span>
-                    )}
+                    <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs border border-gray-200">
+                        {p.flavor || "Khác"}
+                    </span>
                   </td>
 
+                  <td className="p-4 text-gray-700 font-bold">{p.stock}</td>
                   <td className="p-4 font-semibold">{formatCurrency(p.salePrice > 0 ? p.salePrice : p.price)}</td>
                   <td className="p-4 text-right flex justify-end gap-2">
                     <button onClick={() => openEditModal(p)} className="text-blue-600"><Edit size={18} /></button>
@@ -244,7 +242,7 @@ const ProductManager = () => {
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan="6" className="p-6 text-center">Chưa có sản phẩm</td></tr>
+                <tr><td colSpan="7" className="p-6 text-center">Chưa có sản phẩm</td></tr>
               )}
             </tbody>
           </table>
@@ -275,9 +273,23 @@ const ProductManager = () => {
                     </select>
                 </div>
 
-                {/* ✅ Input nhập số lượng kho */}
+                {/* ✅ SELECT BOX CHỌN VỊ */}
                 <div>
-                    <label className="block mb-1 font-medium">Số lượng trong kho</label>
+                    <label className="block mb-1 font-medium">Hương vị chính</label>
+                    <select 
+                        required 
+                        value={formData.flavor} 
+                        onChange={e => setFormData({...formData, flavor: e.target.value})} 
+                        className="w-full border px-3 py-2 rounded focus:border-pink-500 outline-none"
+                    >
+                        {FLAVORS.map(flav => (
+                            <option key={flav} value={flav}>{flav}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label className="block mb-1 font-medium">Số lượng </label>
                     <input type="number" min="0" required value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} className="w-full border px-3 py-2 rounded focus:border-pink-500 outline-none" />
                 </div>
 
@@ -295,7 +307,7 @@ const ProductManager = () => {
                 <label className="block mb-1 font-medium">Hình ảnh</label>
                 <div className="border border-dashed p-4 rounded flex items-center gap-4 bg-gray-50">
                   <input type="file" accept="image/*" onChange={handleImageSelect} />
-                  {previewFile && <span className="text-green-600 text-sm font-medium">Đã chọn ảnh</span>}
+                  {previewFile && <span className="text-green-600 font-medium">Đã chọn ảnh</span>}
                 </div>
               </div>
 

@@ -5,7 +5,7 @@ import slugify from "slugify";
 // --- Create Product ---
 export const createProduct = async (req, res, next) => {
   try {
-    const payload = req.body;
+    const payload = req.body; // Mongoose tự map 'flavor' từ body vào db nếu model có khai báo
 
     // Validate category
     if (payload.category) {
@@ -104,11 +104,20 @@ export const getProduct = async (req, res, next) => {
   }
 };
 
-// --- List Products ---
+// --- List Products (ĐÃ CẬP NHẬT LỌC VỊ & NỔI BẬT) ---
 export const listProducts = async (req, res, next) => {
   try {
-    const { page = 1, limit = 12, q, category, minPrice, maxPrice, sort } =
-      req.query;
+    const { 
+        page = 1, 
+        limit = 12, 
+        q, 
+        category, 
+        minPrice, 
+        maxPrice, 
+        sort,
+        featured,
+        flavor // ✅ 1. Nhận tham số flavor từ URL
+    } = req.query;
 
     const filter = {};
 
@@ -117,12 +126,26 @@ export const listProducts = async (req, res, next) => {
     if (minPrice) filter.price = { ...filter.price, $gte: Number(minPrice) };
     if (maxPrice) filter.price = { ...filter.price, $lte: Number(maxPrice) };
 
+    // ✅ 2. LOGIC LỌC THEO VỊ
+    if (flavor) {
+        filter.flavor = flavor;
+    }
+
+    // ✅ 3. LOGIC SẢN PHẨM NỔI BẬT (Rating >= 4)
+    if (featured === 'true') {
+        filter.avgRating = { $gte: 4 }; 
+    }
+
     const skip = (page - 1) * limit;
 
     const total = await Product.countDocuments(filter);
+    
+    // Nếu lọc nổi bật thì ưu tiên xếp theo Rating cao xuống thấp
+    const sortCondition = sort || (featured === 'true' ? "-avgRating" : "-createdAt");
+
     const items = await Product.find(filter)
       .populate("category")
-      .sort(sort || "-createdAt")
+      .sort(sortCondition)
       .skip(skip)
       .limit(Number(limit));
 
