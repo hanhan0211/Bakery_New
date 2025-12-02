@@ -109,9 +109,7 @@ const HomePage = () => {
               <Link to="/san-pham" className="bg-pink-600 hover:bg-pink-700 text-white px-8 py-3 rounded-full font-bold transition flex items-center gap-2">
                 Đặt Bánh Ngay <ChevronRight size={20}/>
               </Link>
-              <button className="bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-full font-bold backdrop-blur-sm transition">
-                Xem Menu
-              </button>
+              
             </div>
           </div>
         </div>
