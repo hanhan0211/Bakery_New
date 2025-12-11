@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
+// ✅ Hàm 1: protect
 export const protect = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(" ")[1]; // Bearer token
@@ -17,9 +18,11 @@ export const protect = async (req, res, next) => {
   }
 };
 
+// ✅ Hàm 2: admin (Chữ thường)
 export const admin = (req, res, next) => {
-  if (req.user.role !== "admin") {
+  if (req.user && req.user.role === "admin") {
+    next();
+  } else {
     return res.status(403).json({ message: "Bạn không có quyền truy cập" });
   }
-  next();
 };

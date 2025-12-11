@@ -1,28 +1,27 @@
 import React from 'react';
-// ✅ 1. Thêm useNavigate vào import
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ShoppingBag, Layers, LogOut, Home, Package, Mail } from 'lucide-react';
+// ✅ 1. Thêm icon 'Users' vào dòng import này
+import { LayoutDashboard, ShoppingBag, Layers, LogOut, Home, Package, Mail, Users, Star, Image } from 'lucide-react';
 
 const AdminLayout = () => {
   const location = useLocation();
-  const navigate = useNavigate(); // ✅ 2. Khai báo hook điều hướng
+  const navigate = useNavigate();
 
   const menuItems = [
     { path: '/admin', icon: <LayoutDashboard size={20} />, label: 'Thống kê' },
-    { path: '/admin/contacts', icon: <Mail size={20} />, label: 'Liên hệ' },
     { path: '/admin/orders', icon: <Package size={20} />, label: 'Đơn hàng' },
     { path: '/admin/products', icon: <ShoppingBag size={20} />, label: 'Sản phẩm' },
     { path: '/admin/categories', icon: <Layers size={20} />, label: 'Danh mục' },
+    { path: '/admin/users', icon: <Users size={20} />, label: 'Khách hàng' }, 
+    { path: '/admin/reviews', icon: <Star size={20} />, label: 'Đánh giá' },
+    { path: '/admin/banners', icon: <Image size={20} />, label: 'Banner' },
+    { path: '/admin/contacts', icon: <Mail size={20} />, label: 'Liên hệ' },
   ];
 
-  // ✅ 3. Hàm xử lý đăng xuất
   const handleLogout = () => {
     if (window.confirm("Bạn có chắc chắn muốn đăng xuất không?")) {
-      // Xóa thông tin lưu trong máy
       localStorage.removeItem("ACCESS_TOKEN");
       localStorage.removeItem("USER_INFO");
-      
-      // Chuyển hướng về trang đăng nhập
       navigate("/login");
     }
   };
@@ -57,7 +56,6 @@ const AdminLayout = () => {
             <Home size={20} /> Về Website
           </Link>
           
-          {/* ✅ 4. Gắn sự kiện onClick vào nút này */}
           <button 
             onClick={handleLogout}
             className="flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 transition w-full text-left"
@@ -69,9 +67,6 @@ const AdminLayout = () => {
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 overflow-y-auto">
-        
-
-        {/* Nội dung thay đổi sẽ hiển thị ở đây */}
         <div className="p-6">
             <Outlet /> 
         </div>

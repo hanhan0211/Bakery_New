@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Star, Minus, Plus, ShoppingCart, Heart, Truck, ShieldCheck, 
-  Check, ChevronRight, Share2, Search, Loader, MessageSquare, User 
+  Star, Minus, Plus, ShoppingCart, ShieldCheck, 
+  Check, ChevronRight, Search, MessageSquare, User 
 } from 'lucide-react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -128,7 +128,7 @@ const ProductDetailPage = () => {
     }
   }, [product]);
 
-  // HÀM XỬ LÝ THÊM VÀO GIỎ HÀNG
+  // --- HÀM XỬ LÝ THÊM VÀO GIỎ HÀNG (CÓ UPDATE BADGE) ---
   const handleAddToCart = async () => {
     const token = localStorage.getItem("ACCESS_TOKEN");
     if (!token) {
@@ -148,6 +148,9 @@ const ProductDetailPage = () => {
             headers: { Authorization: `Bearer ${token}` }
         });
         
+        // ✅ BẮN SỰ KIỆN ĐỂ APP.JS CẬP NHẬT SỐ LƯỢNG GIỎ HÀNG
+        window.dispatchEvent(new Event("CART_UPDATED"));
+
         alert(`Đã thêm thành công ${quantity} chiếc "${product.name}" vào giỏ hàng!`);
     } catch (err) {
         console.error(err);
@@ -306,7 +309,7 @@ const ProductDetailPage = () => {
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 font-serif leading-tight">{product.name}</h1>
                     
                     <div className="mb-8 bg-pink-50/50 p-5 rounded-2xl border border-pink-100 inline-block w-full mt-4">
-                         <div className="flex items-end gap-3">
+                          <div className="flex items-end gap-3">
                             {product.salePrice > 0 && product.salePrice < product.price ? (
                                 <>
                                     <span className="text-4xl font-bold text-pink-600">{product.salePrice.toLocaleString()}đ</span>
@@ -315,14 +318,14 @@ const ProductDetailPage = () => {
                             ) : (
                                 <span className="text-4xl font-bold text-pink-600">{product.price.toLocaleString()}đ</span>
                             )}
-                         </div>
+                          </div>
                     </div>
 
                     <p className="text-gray-600 leading-relaxed mb-8 whitespace-pre-line text-base">
                         {product.description || "Đang cập nhật mô tả cho chiếc bánh thơm ngon này..."}
                     </p>
 
-                    {/* ✅ HIỂN THỊ TRẠNG THÁI KHO */}
+                    {/* HIỂN THỊ TRẠNG THÁI KHO */}
                     <div className="mb-6">
                         {product.stock > 0 ? (
                             <div className="flex items-center gap-2 text-green-600 font-medium bg-green-50 px-3 py-1 rounded-lg w-fit">
@@ -377,7 +380,7 @@ const ProductDetailPage = () => {
                             disabled={addingToCart || product.stock === 0} 
                             className={`flex-1 font-bold py-3 px-8 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform h-12 
                                 ${product.stock === 0
-                                    ? 'bg-gray-400 text-white cursor-not-allowed shadow-none' // Style khi hết hàng
+                                    ? 'bg-gray-400 text-white cursor-not-allowed shadow-none'
                                     : addingToCart 
                                         ? 'bg-pink-400 text-white cursor-wait' 
                                         : 'bg-pink-600 text-white hover:bg-pink-700 shadow-pink-200 active:scale-[0.98]'
@@ -469,16 +472,7 @@ const ProductDetailPage = () => {
                             </div>
                         </div>
 
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Tiêu đề</label>
-                            <input 
-                                type="text"
-                                value={reviewTitle}
-                                onChange={(e) => setReviewTitle(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-pink-500 bg-white"
-                                placeholder="Ví dụ: Bánh rất ngon, giao hàng nhanh..."
-                            />
-                        </div>
+                        
 
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Nội dung chi tiết</label>

@@ -1,70 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, ChevronRight, Star, Heart, Clock, Truck, ShieldCheck } from 'lucide-react';
+import { ShoppingCart, ChevronRight, Star, Heart, Clock, Truck, ShieldCheck, ChevronLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import Slider from "react-slick"; 
+import "slick-carousel/slick/slick.css"; 
+import "slick-carousel/slick/slick-theme.css";
 
+// Hàm helper ảnh
 const getImageUrl = (path) => {
     if (!path) return 'https://via.placeholder.com/500x500?text=No+Image';
     if (path.startsWith('http')) return path;
-    return `http://localhost:5000${path}`;
+    const cleanPath = path.replace(/\\/g, "/");
+    return `http://localhost:5000${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
 };
 
-// --- FOOTER COMPONENT (Giữ nguyên) ---
-const Footer = () => {
-  return (
-    <footer className="bg-gray-900 text-white pt-12 pb-6 mt-auto">
-        <div className="container mx-auto px-4 grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-                <h3 className="text-2xl font-bold text-pink-500 mb-4">HanHan Bakery</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                    Nơi gửi gắm yêu thương qua từng chiếc bánh ngọt ngào.
-                </p>
-            </div>
-            <div>
-                <h4 className="font-bold text-lg mb-4">Liên Kết</h4>
-                <ul className="space-y-2 text-gray-400 text-sm">
-                    <li><Link to="/" className="hover:text-pink-500">Trang chủ</Link></li>
-                    <li><Link to="/san-pham" className="hover:text-pink-500">Thực đơn</Link></li>
-                    <li><Link to="#" className="hover:text-pink-500">Chính sách</Link></li>
-                </ul>
-            </div>
-            <div>
-                <h4 className="font-bold text-lg mb-4">Liên Hệ</h4>
-                <ul className="space-y-2 text-gray-400 text-sm">
-                    <li>📍 123 Đường ABC, Quận 1, TP.HCM</li>
-                    <li>📞 090 123 4567</li>
-                    <li>✉️ contact@hanhanbakery.com</li>
-                </ul>
-            </div>
-            <div>
-                 <h4 className="font-bold text-lg mb-4">Đăng Ký Nhận Tin</h4>
-                 <div className="flex">
-                    <input type="email" placeholder="Email của bạn" className="bg-gray-800 text-white px-4 py-2 rounded-l-md w-full focus:outline-none" />
-                    <button className="bg-pink-600 px-4 py-2 rounded-r-md hover:bg-pink-700">Gửi</button>
-                 </div>
-            </div>
-        </div>
-        <div className="border-t border-gray-800 text-center pt-6 text-gray-500 text-sm">
-            © 2025 HanHan Bakery. All rights reserved.
-        </div>
-    </footer>
-  );
-};
+// ❌ ĐÃ XÓA FOOTER Ở ĐÂY
 
 const HomePage = () => {
   const [categories, setCategories] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
         try {
-            const cateRes = await axios.get('http://localhost:5000/api/categories');
-            setCategories(cateRes.data);
+            const [cateRes, prodRes, bannerRes] = await Promise.all([
+                axios.get('http://localhost:5000/api/categories'),
+                axios.get('http://localhost:5000/api/products?limit=8&featured=true'),
+                axios.get('http://localhost:5000/api/banners')
+            ]);
 
-            // 👇👇👇 SỬA CHỖ NÀY: Thêm &featured=true 👇👇👇
-            const prodRes = await axios.get('http://localhost:5000/api/products?limit=8&featured=true');
+            setCategories(cateRes.data);
             setFeaturedProducts(prodRes.data.items || []);
+            setBanners(bannerRes.data);
         } catch (error) {
             console.error("Lỗi khi tải dữ liệu:", error);
         } finally {
@@ -73,6 +42,17 @@ const HomePage = () => {
     };
     fetchData();
   }, []);
+
+  const settings = {
+    dots: true,
+    infinite: true,
+    speed: 800,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 5000,
+    arrows: false,
+  };
 
   if (loading) {
       return (
@@ -85,30 +65,51 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-white font-sans text-gray-800 flex flex-col">
       
-      {/* HERO BANNER */}
-      <section className="relative h-[600px] flex items-center">
-        <div className="absolute inset-0">
-          <img src="/assets/img/banner2.jpg" alt="Bakery Banner" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent"></div>
-        </div>
-        <div className="container mx-auto px-6 relative z-10">
-          <div className="max-w-2xl text-white animate-fade-in-up">
-            <span className="bg-pink-600 text-white px-3 py-1 rounded-full text-sm font-semibold mb-4 inline-block">
-              Mới ra lò hôm nay! 🍞
-            </span>
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-              Vị Ngọt <br/> <span className="text-pink-400">Của Hạnh Phúc</span>
-            </h1>
-            <p className="text-lg md:text-xl mb-8 text-gray-200">
-              Chúng tôi tin rằng mỗi chiếc bánh là một tác phẩm nghệ thuật, được làm từ 100% nguyên liệu tự nhiên và tình yêu thương.
-            </p>
-            <div className="flex gap-4">
-              <Link to="/san-pham" className="bg-pink-600 hover:bg-pink-700 text-white px-8 py-3 rounded-full font-bold transition flex items-center gap-2">
-                Đặt Bánh Ngay <ChevronRight size={20}/>
-              </Link>
+      {/* HERO BANNER SLIDER */}
+      <section className="relative h-[600px] overflow-hidden">
+        {banners.length > 0 ? (
+            <Slider {...settings}>
+                {banners.map((banner) => (
+                    <div key={banner._id} className="relative h-[600px]">
+                        <img 
+                            src={getImageUrl(banner.image)} 
+                            alt={banner.title} 
+                            className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent"></div>
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="container mx-auto px-6">
+                                <div className="max-w-2xl text-white animate-fade-in-up">
+                                    <span className="bg-pink-600 text-white px-3 py-1 rounded-full text-sm font-semibold mb-4 inline-block">
+                                        Hot Deal 🔥
+                                    </span>
+                                    <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight drop-shadow-lg">
+                                        {banner.title}
+                                    </h1>
+                                    <p className="text-lg md:text-xl mb-8 text-gray-100 drop-shadow-md">
+                                        {banner.description}
+                                    </p>
+                                    <Link to="/san-pham" className="bg-pink-600 hover:bg-pink-700 text-white px-8 py-3 rounded-full font-bold transition flex items-center gap-2 w-fit">
+                                        Mua Ngay <ChevronRight size={20}/>
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </Slider>
+        ) : (
+            <div className="relative h-full">
+                <img src="/assets/img/banner2.jpg" alt="Default Banner" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent"></div>
+                <div className="absolute inset-0 flex items-center container mx-auto px-6">
+                    <div className="max-w-2xl text-white">
+                        <h1 className="text-5xl md:text-7xl font-bold mb-6">Vị Ngọt <br/> <span className="text-pink-400">Của Hạnh Phúc</span></h1>
+                        <Link to="/san-pham" className="bg-pink-600 text-white px-8 py-3 rounded-full font-bold">Đặt Bánh Ngay</Link>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
+        )}
       </section>
 
       {/* FEATURES */}
@@ -164,7 +165,7 @@ const HomePage = () => {
         )}
       </section>
 
-      {/* --- BEST SELLERS (SẢN PHẨM NỔI BẬT) --- */}
+      {/* BEST SELLERS */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-6">
           <div className="flex justify-between items-end mb-10">
@@ -198,8 +199,6 @@ const HomePage = () => {
                   
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-pink-600 text-lg">{product.price.toLocaleString()}đ</span>
-                    
-                    {/* 👇👇👇 SỬA CHỖ NÀY: Dùng số sao thật (avgRating) thay vì mảng tĩnh 👇👇👇 */}
                     <div className="flex text-yellow-400 text-xs ml-auto items-center gap-1">
                         <span className="text-gray-400 font-medium text-[10px]">({product.reviewCount || 0})</span>
                         <div className="flex">
@@ -207,32 +206,28 @@ const HomePage = () => {
                                 <Star 
                                     key={i} 
                                     size={12} 
-                                    // Tô màu nếu điểm >= i, ngược lại màu xám
                                     fill={i <= (product.avgRating || 0) ? "currentColor" : "none"} 
                                     className={i <= (product.avgRating || 0) ? "text-yellow-400" : "text-gray-300"}
                                 />
                             ))}
                         </div>
                     </div>
-                    {/* 👆👆👆 */}
-
                   </div>
                 </Link>
               ))}
             </div>
           ) : (
-            // Hiển thị khi không có bánh nào đạt chuẩn
             <div className="text-center py-10 bg-gray-50 rounded-2xl">
                 <p className="text-gray-500 mb-4 text-lg">Chưa có sản phẩm nào đạt đánh giá cao tuần này.</p>
                 <Link to="/san-pham" className="bg-pink-100 text-pink-600 px-6 py-2 rounded-full font-bold hover:bg-pink-200 transition">
-                   Xem tất cả bánh
+                    Xem tất cả bánh
                 </Link>
             </div>
           )}
         </div>
       </section>
 
-      <Footer />
+      {/* ❌ ĐÃ XÓA FOOTER Ở DƯỚI CÙNG NÀY */}
     </div>
   );
 };

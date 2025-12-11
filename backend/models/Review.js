@@ -7,9 +7,13 @@ const reviewSchema = new mongoose.Schema({
   title: { type: String },
   content: { type: String },
   images: [String],
-  approved: { type: Boolean, default: true }
+  approved: { type: Boolean, default: true }, // Bạn đang để mặc định là hiện luôn
+  
+  // ✅ THÊM TRƯỜNG NÀY:
+  adminResponse: { type: String } 
 }, { timestamps: true });
 
+// Giữ nguyên index
 reviewSchema.index({ product: 1, user: 1 }, { unique: true });
 
 export default mongoose.model("Review", reviewSchema);

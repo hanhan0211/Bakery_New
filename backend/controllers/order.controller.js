@@ -1,6 +1,8 @@
 import Order from "../models/Order.js";
 import Cart from "../models/Cart.js";
 import Product from "../models/Product.js";
+import User from "../models/User.js"; // Import thêm User
+
 
 // Giữ nguyên hàm tạo đơn (Lưu ý: Đảm bảo Cart đã được lưu vào DB trước khi gọi hàm này)
 export const createOrderFromCart = async (req, res, next) => {
@@ -93,4 +95,95 @@ export const updateOrderStatus = async (req, res, next) => {
     await order.save();
     res.json(order);
   } catch(err){ next(err); }
+};
+export const getDashboardStats = async (req, res, next) => {
+  try {
+    // 1. Đếm số lượng cơ bản
+    const totalUsers = await User.countDocuments({ role: "user" });
+    const totalProducts = await Product.countDocuments();
+    const totalOrders = await Order.countDocuments();
+
+    // 2. Tính tổng doanh thu (Chỉ tính các đơn đã hoàn thành)
+    const revenueAgg = await Order.aggregate([
+      { $match: { status: "completed" } },
+      { $group: { _id: null, total: { $sum: "$totalPrice" } } }
+    ]);
+    const totalRevenue = revenueAgg.length > 0 ? revenueAgg[0].total : 0;
+
+    // 3. Biểu đồ doanh thu 7 ngày gần nhất
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const dailyRevenue = await Order.aggregate([
+      { 
+        $match: { 
+          status: "completed",
+          updatedAt: { $gte: sevenDaysAgo } 
+        } 
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$updatedAt" } },
+          revenue: { $sum: "$totalPrice" }
+        }
+      },
+      { $sort: { _id: 1 } } // Sắp xếp theo ngày tăng dần
+    ]);
+
+    // 4. Lấy 5 đơn hàng mới nhất
+    const recentOrders = await Order.find()
+      .select("user totalPrice status createdAt")
+      .populate("user", "name email")
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    // 5. (Nâng cao) Top 4 sản phẩm bán chạy nhất
+    // Vì model Product không có trường 'sold', ta phải tính tổng từ Order
+    const topProducts = await Order.aggregate([
+      { $match: { status: "completed" } }, // Chỉ lấy đơn đã hoàn thành
+      { $unwind: "$items" },
+      { 
+        $group: { 
+          _id: "$items.product", 
+          totalSold: { $sum: "$items.qty" }
+        } 
+      },
+      { $sort: { totalSold: -1 } },
+      { $limit: 4 },
+      
+      {
+        $lookup: {
+          from: "products", // Tên collection trong DB (thường là số nhiều)
+          localField: "_id",
+          foreignField: "_id",
+          as: "productInfo"
+        }
+      },
+      { $unwind: "$productInfo" }, // Gỡ mảng productInfo ra
+      {
+        $project: {
+          _id: 1,
+          totalSold: 1,
+          name: "$productInfo.name",
+          price: "$productInfo.price",
+          // Lấy URL của ảnh đầu tiên trong mảng images
+          image: { $arrayElemAt: ["$productInfo.images.url", 0] } 
+        }
+      }
+    ]);
+    res.json({
+      counts: {
+        users: totalUsers,
+        products: totalProducts,
+        orders: totalOrders,
+        revenue: totalRevenue
+      },
+      chartData: dailyRevenue,
+      recentOrders,
+      topProducts
+    });
+
+  } catch (err) {
+    next(err);
+  }
 };

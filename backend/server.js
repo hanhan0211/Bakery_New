@@ -19,6 +19,8 @@ import orderRoute from "./routes/order.route.js";
 import contactRoute from "./routes/contact.route.js";
 import reviewRoute from "./routes/review.route.js";
 import uploadRoute from "./routes/upload.route.js";
+import userRoutes from "./routes/user.routes.js";
+import bannerRoute from "./routes/banner.route.js";
 
 // Import middleware (nếu có global middleware)
 import { notFound, errorHandler } from "./middleware/error.middleware.js";
@@ -37,8 +39,8 @@ app.use(cookieParser());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use('/uploads', express.static('uploads'));
 
-app.use("/api/upload", uploadRoute);
 
 app.use("/api/auth", authRoute);
 app.use("/api/categories", categoryRoute);
@@ -47,6 +49,8 @@ app.use("/api/cart", cartRoute);
 app.use("/api/orders", orderRoute);
 app.use("/api/contact", contactRoute);
 app.use("/api/reviews", reviewRoute);
+app.use("/api/users", userRoutes);
+app.use("/api/banners", bannerRoute);
 
 // Not found & error handler
 app.use(notFound);
