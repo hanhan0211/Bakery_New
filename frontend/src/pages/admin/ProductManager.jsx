@@ -19,7 +19,7 @@ axiosClient.interceptors.request.use((config) => {
 const formatCurrency = (amount) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
 
-// ✅ DANH SÁCH VỊ (Phải khớp với Backend Model và Frontend ProductPage)
+// ✅ DANH SÁCH VỊ
 const FLAVORS = ['Vani', 'Socola', 'Dâu', 'Matcha', 'Phô mai', 'Trái cây', 'Cà phê', 'Khác'];
 
 const ProductManager = () => {
@@ -33,7 +33,6 @@ const ProductManager = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
 
-  // ✅ Thêm trường flavor vào state form
   const [formData, setFormData] = useState({
     _id: "",
     name: "",
@@ -42,7 +41,7 @@ const ProductManager = () => {
     price: 0,
     salePrice: 0,
     stock: 0,
-    flavor: "Khác", // Mặc định
+    flavor: "Khác",
     category: "",
     images: [], 
   });
@@ -114,7 +113,7 @@ const ProductManager = () => {
         price: Number(formData.price),
         salePrice: Number(formData.salePrice),
         stock: Number(formData.stock),
-        flavor: formData.flavor, // ✅ Gửi flavor lên server
+        flavor: formData.flavor,
         category: formData.category,
         images: finalImages,
       };
@@ -140,7 +139,6 @@ const ProductManager = () => {
   const openAddModal = () => {
     setIsEdit(false);
     setPreviewFile(null);
-    // Reset form
     setFormData({ 
         _id: "", name: "", slug: "", description: "", 
         price: 0, salePrice: 0, stock: 0, 
@@ -160,7 +158,7 @@ const ProductManager = () => {
       price: product.price,
       salePrice: product.salePrice,
       stock: product.stock || 0,
-      flavor: product.flavor || "Khác", // ✅ Lấy flavor cũ
+      flavor: product.flavor || "Khác",
       category: product.category?._id || product.category,
       images: product.images || [],
     });
@@ -209,7 +207,8 @@ const ProductManager = () => {
                 <th className="p-4">Tên sản phẩm</th>
                 <th className="p-4">Danh mục</th>
                 <th className="p-4">Vị</th>
-                <th className="p-4">Số lượng</th>
+                {/* ✅ SỬA TIÊU ĐỀ CỘT */}
+                <th className="p-4">Tình trạng kho</th>
                 <th className="p-4">Giá</th>
                 <th className="p-4 text-right">Hành động</th>
               </tr>
@@ -226,15 +225,33 @@ const ProductManager = () => {
                   </td>
                   <td className="p-4 font-medium">{p.name}</td>
                   <td className="p-4">{p.category?.name || "Chưa phân loại"}</td>
-                  
-                  {/* ✅ Hiển thị Vị */}
                   <td className="p-4">
                     <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs border border-gray-200">
                         {p.flavor || "Khác"}
                     </span>
                   </td>
 
-                  <td className="p-4 text-gray-700 font-bold">{p.stock}</td>
+                  {/* ✅ HIỂN THỊ TRẠNG THÁI KHO */}
+                  <td className="p-4">
+                    {p.stock > 0 ? (
+                        <div className="flex flex-col items-start gap-1">
+                            {/* Logic: <= 5 là Sắp hết (Vàng), > 5 là Còn hàng (Xanh) */}
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold border ${
+                                p.stock <= 5 
+                                ? "bg-yellow-100 text-yellow-700 border-yellow-200" 
+                                : "bg-green-100 text-green-700 border-green-200"
+                            }`}>
+                                {p.stock <= 5 ? "Sắp hết" : "Còn hàng"}
+                            </span>
+                            <span className="text-xs text-gray-500 ml-1">SL: {p.stock}</span>
+                        </div>
+                    ) : (
+                        <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold border border-red-200">
+                            Hết hàng
+                        </span>
+                    )}
+                  </td>
+
                   <td className="p-4 font-semibold">{formatCurrency(p.salePrice > 0 ? p.salePrice : p.price)}</td>
                   <td className="p-4 text-right flex justify-end gap-2">
                     <button onClick={() => openEditModal(p)} className="text-blue-600"><Edit size={18} /></button>
@@ -273,7 +290,6 @@ const ProductManager = () => {
                     </select>
                 </div>
 
-                {/* ✅ SELECT BOX CHỌN VỊ */}
                 <div>
                     <label className="block mb-1 font-medium">Hương vị chính</label>
                     <select 

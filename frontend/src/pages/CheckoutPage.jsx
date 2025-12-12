@@ -3,7 +3,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { 
   MapPin, Phone, User, CreditCard, Banknote, 
-  ChevronLeft, CheckCircle, Loader 
+  ChevronLeft, CheckCircle, Loader, Save 
 } from 'lucide-react';
 
 const getImageUrl = (path) => {
@@ -16,11 +16,10 @@ const CheckoutPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // Nhận dữ liệu từ CartPage
     const { items, total } = location.state || { items: [], total: 0 };
     const [loading, setLoading] = useState(false);
     
-    // Form state khớp với schema backend
+    // Form state
     const [shippingInfo, setShippingInfo] = useState({
         fullName: '',
         phone: '',
@@ -28,12 +27,33 @@ const CheckoutPage = () => {
         city: ''       
     });
 
-    // Payment method phải là 'cod' hoặc 'card' theo enum backend
     const [paymentMethod, setPaymentMethod] = useState('cod'); 
 
+    // ✅ LOGIC MỚI: Tự động điền thông tin khi vào trang
     useEffect(() => {
+        // 1. Kiểm tra giỏ hàng
         if (!items || items.length === 0) {
             navigate('/cart');
+            return;
+        }
+
+        // 2. Thử lấy địa chỉ đã lưu lần mua trước
+        const savedAddress = localStorage.getItem("SAVED_SHIPPING_INFO");
+        
+        if (savedAddress) {
+            // Nếu có lịch sử mua hàng -> Điền form luôn
+            setShippingInfo(JSON.parse(savedAddress));
+        } else {
+            // Nếu chưa mua lần nào -> Thử lấy Tên từ thông tin đăng nhập (USER_INFO)
+            const userInfo = localStorage.getItem("USER_INFO");
+            if (userInfo) {
+                const user = JSON.parse(userInfo);
+                setShippingInfo(prev => ({
+                    ...prev,
+                    fullName: user.name || '', // Lấy tên user
+                    // phone: user.phone || '' // Nếu backend lúc login trả về phone thì điền luôn
+                }));
+            }
         }
     }, [items, navigate]);
 
@@ -58,6 +78,9 @@ const CheckoutPage = () => {
 
         setLoading(true);
 
+        // ✅ LOGIC MỚI: Lưu thông tin này lại cho lần sau mua tiếp
+        localStorage.setItem("SAVED_SHIPPING_INFO", JSON.stringify(shippingInfo));
+
         const orderData = {
             orderItems: items.map(item => ({
                 product: item.product._id || item.product,
@@ -81,20 +104,16 @@ const CheckoutPage = () => {
         };
 
         try {
-            console.log("Sending Order Data:", orderData);
-
             const res = await axios.post('http://localhost:5000/api/orders', orderData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
-            // ✅ SỬA Ở ĐÂY: Kiểm tra và chuyển hướng
             if (res.status === 201) {
-                const newOrderId = res.data._id; // Lấy ID đơn hàng từ Backend trả về
+                // Xóa giỏ hàng trên frontend nếu cần (tuỳ logic app của bạn)
+                // localStorage.removeItem("CART_ITEMS"); 
                 
                 alert("Đặt hàng thành công!");
-                
-                // ✅ Chuyển hướng sang trang chi tiết đơn hàng
-                navigate(`/order/${newOrderId}`);
+                navigate(`/order/${res.data._id}`);
             }
 
         } catch (err) {
@@ -122,10 +141,16 @@ const CheckoutPage = () => {
                     
                     {/* CỘT TRÁI: FORM NHẬP LIỆU */}
                     <div className="w-full lg:w-3/5">
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 relative">
                             <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                                 <MapPin className="text-pink-600" /> Thông tin giao hàng
                             </h2>
+                            
+                            {/* Gợi ý nhỏ cho người dùng */}
+                            <div className="absolute top-6 right-6 text-xs text-gray-400 flex items-center gap-1">
+                                <Save size={12}/> Tự động lưu cho lần sau
+                            </div>
+
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Họ tên (*)</label>

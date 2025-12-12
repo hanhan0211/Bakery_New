@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Loader, MapPin, CreditCard, ChevronLeft, Package, Phone, User, Calendar } from 'lucide-react';
+import { 
+    Loader, MapPin, CreditCard, ChevronLeft, Package, Phone, User, Calendar, 
+    RefreshCw, Star, ExternalLink 
+} from 'lucide-react';
 
 const getImageUrl = (path) => {
     if (!path) return 'https://via.placeholder.com/150';
@@ -11,10 +14,11 @@ const getImageUrl = (path) => {
 
 const OrderDetailPage = () => {
     const { id } = useParams();
+    const navigate = useNavigate();
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [processingItem, setProcessingItem] = useState(null); // Trạng thái loading cho từng nút Mua Lại
 
-    // ✅ THÊM: Lấy thông tin user hiện tại để biết là Admin hay Khách
     const currentUser = JSON.parse(localStorage.getItem("USER_INFO") || "{}");
     const isAdmin = currentUser?.role === 'admin';
 
@@ -35,6 +39,41 @@ const OrderDetailPage = () => {
         fetchOrder();
     }, [id]);
 
+    // ✅ HÀM MUA LẠI: Thêm sản phẩm vào giỏ hàng
+    const handleBuyAgain = async (item) => {
+        const token = localStorage.getItem("ACCESS_TOKEN");
+        if (!token) {
+            alert("Bạn cần đăng nhập để mua hàng");
+            return navigate("/login");
+        }
+
+        // Lấy ID sản phẩm (Xử lý trường hợp item.product là Object hay String)
+        const productId = item.product._id || item.product; 
+
+        setProcessingItem(item._id || productId); // Bật loading xoay xoay tại nút đó
+
+        try {
+            await axios.post('http://localhost:5000/api/cart/add', {
+                productId: productId,
+                qty: 1, // Mặc định mua lại 1 cái (hoặc item.qty nếu muốn mua đúng số lượng cũ)
+                attrs: {}
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            // Cập nhật badge giỏ hàng trên Header (quan trọng)
+            window.dispatchEvent(new Event("CART_UPDATED"));
+
+            // Chuyển hướng sang giỏ hàng ngay lập tức
+            navigate("/cart"); 
+        } catch (err) {
+            console.error(err);
+            alert("Sản phẩm này có thể đã hết hàng hoặc bị xóa.");
+        } finally {
+            setProcessingItem(null);
+        }
+    };
+
     if (loading) return <div className="flex justify-center py-20"><Loader className="animate-spin text-pink-500 w-10 h-10" /></div>;
     if (!order) return <div className="text-center py-20 text-gray-500">Không tìm thấy đơn hàng</div>;
 
@@ -44,22 +83,19 @@ const OrderDetailPage = () => {
         cancelled: { label: 'Đã hủy', color: 'bg-red-100 text-red-700' },
     };
     const currentStatus = statusConfig[order.status] || { label: order.status, color: 'bg-gray-100' };
+    const isCompleted = order.status === 'completed';
 
     return (
         <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen font-sans">
-            
-            {/* ✅ SỬA NÚT QUAY LẠI: Kiểm tra isAdmin để điều hướng đúng */}
             <Link 
                 to={isAdmin ? "/admin/orders" : "/my-orders"} 
                 className="inline-flex items-center gap-2 text-gray-500 hover:text-pink-600 mb-6 font-medium transition-colors"
             >
                 <ChevronLeft size={20} /> 
-                {isAdmin ? "Quay lại quản lý đơn hàng" : "Quay lại danh sách đơn hàng"}
+                {isAdmin ? "Quay lại quản lý" : "Quay lại danh sách đơn hàng"}
             </Link>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-5xl mx-auto">
-                
-                {/* Header Đơn hàng */}
                 <div className="bg-pink-50/50 p-6 border-b border-pink-100 flex flex-wrap justify-between items-center gap-4">
                     <div>
                         <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -77,79 +113,101 @@ const OrderDetailPage = () => {
                 </div>
 
                 <div className="p-6 grid lg:grid-cols-3 gap-8">
-                    
-                    {/* CỘT TRÁI: THÔNG TIN */}
+                    {/* CỘT TRÁI (Giữ nguyên) */}
                     <div className="lg:col-span-1 space-y-6">
-                        {/* Địa chỉ */}
                         <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
                             <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-200 pb-3">
                                 <MapPin size={18} className="text-pink-600"/> Địa chỉ nhận hàng
                             </h3>
                             <div className="text-sm space-y-3">
-                                <div className="flex items-start gap-2">
-                                    <User size={16} className="text-gray-400 mt-0.5"/>
-                                    <span className="font-bold text-gray-800">{order.shippingAddress.fullName}</span>
-                                </div>
-                                <div className="flex items-start gap-2">
-                                    <Phone size={16} className="text-gray-400 mt-0.5"/>
-                                    <span className="text-gray-600">{order.shippingAddress.phone}</span>
-                                </div>
-                                <div className="flex items-start gap-2">
-                                    <MapPin size={16} className="text-gray-400 mt-0.5"/>
-                                    <span className="text-gray-600 leading-relaxed">
-                                        {order.shippingAddress.addressLine}, {order.shippingAddress.city}
-                                    </span>
-                                </div>
+                                <p><span className="font-bold">{order.shippingAddress.fullName}</span> - {order.shippingAddress.phone}</p>
+                                <p className="text-gray-600">{order.shippingAddress.addressLine}, {order.shippingAddress.city}</p>
                             </div>
                         </div>
-
-                        {/* Thanh toán */}
-                        <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
+                         <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
                             <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-200 pb-3">
                                 <CreditCard size={18} className="text-pink-600"/> Thanh toán
                             </h3>
-                            <div className="text-sm">
-                                <p className="font-medium text-gray-800 mb-1">
-                                    {order.paymentMethod === 'cod' ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản / Thẻ'}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                    Trạng thái: {order.status === 'completed' ? <span className="text-green-600 font-bold">Đã thanh toán</span> : <span className="text-yellow-600">Chưa thanh toán</span>}
-                                </p>
-                            </div>
+                             <p className="text-sm">
+                                {order.paymentMethod === 'cod' ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản / Thẻ'}
+                             </p>
+                             <p className="text-xs text-gray-500 mt-1">
+                                Trạng thái: {order.status === 'completed' ? <span className="text-green-600 font-bold">Đã thanh toán</span> : <span className="text-yellow-600">Chưa thanh toán</span>}
+                             </p>
                         </div>
                     </div>
 
                     {/* CỘT PHẢI: SẢN PHẨM */}
                     <div className="lg:col-span-2">
                         <h3 className="font-bold text-gray-800 mb-4 text-lg">Sản phẩm ({order.items.length})</h3>
-                        
                         <div className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
-                            {order.items.map((item, idx) => (
-                                <div key={idx} className="flex gap-4 p-4 border-b border-gray-200 last:border-0 items-center bg-white">
-                                    <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0">
-                                        <img 
-                                            src={getImageUrl(item.image)} 
-                                            alt={item.name} 
-                                            className="w-full h-full object-cover" 
-                                            onError={(e) => {e.target.src = 'https://via.placeholder.com/150'}}
-                                        />
-                                    </div>
-                                    <div className="flex-grow">
-                                        <div className="font-bold text-gray-800 mb-1 text-base">{item.name}</div>
-                                        <div className="text-sm text-gray-500">Số lượng: <span className="font-bold text-gray-900">{item.qty}</span></div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="font-bold text-pink-600 text-lg">
-                                            {(item.price * item.qty).toLocaleString()}đ
-                                        </div>
-                                        <div className="text-xs text-gray-400">{item.price.toLocaleString()}đ / cái</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                            {order.items.map((item, idx) => {
+                                // Xác định link sản phẩm:
+                                // Nếu trong Order populate trả về object product có slug thì dùng slug
+                                // Nếu không thì dùng ID
+                                const productSlug = item.product?.slug;
+                                const productId = item.product?._id || item.product;
+                                
+                                const productLink = productSlug 
+                                    ? `/san-pham/${productSlug}` 
+                                    : `/san-pham/${productId}`; // Fallback nếu không có slug
 
-                        {/* Tổng kết tiền */}
-                        <div className="mt-6 bg-white p-6 rounded-xl border border-pink-100 space-y-3">
+                                return (
+                                    <div key={idx} className="flex flex-col sm:flex-row gap-4 p-4 border-b border-gray-200 last:border-0 bg-white items-start sm:items-center">
+                                        
+                                        {/* Link ảnh */}
+                                        <Link to={productLink} className="w-20 h-20 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0 relative group">
+                                            <img 
+                                                src={getImageUrl(item.image)} 
+                                                alt={item.name} 
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                                                onError={(e) => {e.target.src = 'https://via.placeholder.com/150'}}
+                                            />
+                                            <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center"><ExternalLink size={16} className="text-white"/></div>
+                                        </Link>
+
+                                        <div className="flex-grow">
+                                            <Link to={productLink} className="font-bold text-gray-800 mb-1 text-base hover:text-pink-600 transition-colors line-clamp-2">
+                                                {item.name}
+                                            </Link>
+                                            <div className="text-sm text-gray-500">Số lượng: <span className="font-bold">{item.qty}</span></div>
+                                        </div>
+
+                                        <div className="text-right flex flex-col items-end gap-2 min-w-[120px]">
+                                            <div className="font-bold text-pink-600 text-lg">{(item.price * item.qty).toLocaleString()}đ</div>
+                                            
+                                            <div className="flex gap-2 mt-1">
+                                                {/* NÚT MUA LẠI */}
+                                                <button 
+                                                    onClick={() => handleBuyAgain(item)}
+                                                    disabled={!!processingItem}
+                                                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded text-gray-700 hover:bg-gray-50 hover:text-pink-600 transition disabled:opacity-50"
+                                                >
+                                                    {processingItem === (item._id || item.product) ? (
+                                                        <Loader size={14} className="animate-spin text-pink-600"/>
+                                                    ) : (
+                                                        <RefreshCw size={14} />
+                                                    )} 
+                                                    Mua lại
+                                                </button>
+
+                                                {/* NÚT ĐÁNH GIÁ - Chỉ hiện khi hoàn thành */}
+                                                {isCompleted && (
+                                                    <Link 
+                                                        to={`${productLink}#reviews`} // ✅ KÈM #reviews ĐỂ CUỘN XUỐNG
+                                                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-pink-50 text-pink-700 border border-pink-200 rounded hover:bg-pink-100 transition"
+                                                    >
+                                                        <Star size={14} /> Đánh giá
+                                                    </Link>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                         {/* Tổng kết tiền */}
+                         <div className="mt-6 bg-white p-6 rounded-xl border border-pink-100 space-y-3">
                             <div className="flex justify-between text-gray-600 text-sm">
                                 <span>Tạm tính:</span>
                                 <span>{order.itemsPrice?.toLocaleString()}đ</span>

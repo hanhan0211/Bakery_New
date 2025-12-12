@@ -16,14 +16,15 @@ const Footer = () => {
                 <ul className="space-y-2 text-gray-400 text-sm">
                     <li><Link to="/" className="hover:text-pink-500">Trang chủ</Link></li>
                     <li><Link to="/san-pham" className="hover:text-pink-500">Thực đơn bánh</Link></li>
+                    <li><Link to="/gioi-thieu" className="hover:text-pink-500">Giới thiệu</Link></li>
                     <li><Link to="/lien-he" className="hover:text-pink-500">Liên hệ</Link></li>
                 </ul>
             </div>
             <div>
                 <h4 className="font-bold text-lg mb-4">Liên Hệ</h4>
                 <ul className="space-y-2 text-gray-400 text-sm">
-                    <li>📍 123 Đường ABC, Quận 1, TP.HCM</li>
-                    <li>📞 090 123 4567</li>
+                    <li>📍 Số 126 Nguyễn Thiện Thành, khóm 4, phường Hòa Thuận, Vĩnh Long, Việt Nam</li>
+                    <li>📞 099 999 9999</li>
                     <li>✉️ contact@hanhanbakery.com</li>
                 </ul>
             </div>

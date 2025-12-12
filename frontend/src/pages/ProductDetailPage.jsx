@@ -3,8 +3,10 @@ import {
   Star, Minus, Plus, ShoppingCart, ShieldCheck, 
   Check, ChevronRight, Search, MessageSquare, User 
 } from 'lucide-react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+// ✅ THÊM: import useLocation
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import Footer from '../components/Footer'; // Giả sử bạn tách Footer ra, nếu chưa thì giữ nguyên Footer cũ
 
 // --- HELPER: Xử lý link ảnh ---
 const getImageUrl = (path) => {
@@ -13,51 +15,10 @@ const getImageUrl = (path) => {
     return `http://localhost:5000${path}`;
 };
 
-// --- FOOTER COMPONENT ---
-const Footer = () => (
-  <footer className="bg-gray-900 text-white pt-12 pb-6 mt-auto">
-      <div className="container mx-auto px-4 grid md:grid-cols-4 gap-8 mb-8">
-          <div>
-              <h3 className="text-2xl font-bold text-pink-500 mb-4">HanHan Bakery</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                  Nơi gửi gắm yêu thương qua từng chiếc bánh ngọt ngào.
-              </p>
-          </div>
-          <div>
-              <h4 className="font-bold text-lg mb-4">Liên Kết</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
-                  <li><Link to="/" className="hover:text-pink-500">Trang chủ</Link></li>
-                  <li><Link to="/san-pham" className="hover:text-pink-500">Thực đơn</Link></li>
-                  <li><Link to="#" className="hover:text-pink-500">Chính sách</Link></li>
-              </ul>
-          </div>
-          <div>
-              <h4 className="font-bold text-lg mb-4">Liên Hệ</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
-                  <li>📍 123 Đường ABC, Quận 1, TP.HCM</li>
-                  <li>📞 090 123 4567</li>
-                  <li>✉️ contact@hanhanbakery.com</li>
-              </ul>
-          </div>
-          <div>
-               <h4 className="font-bold text-lg mb-4">Đăng Ký Nhận Tin</h4>
-               <div className="flex">
-                  <input type="email" placeholder="Email của bạn" className="bg-gray-800 text-white px-4 py-2 rounded-l-md w-full focus:outline-none" />
-                  <button className="bg-pink-600 px-4 py-2 rounded-r-md hover:bg-pink-700">Gửi</button>
-               </div>
-          </div>
-      </div>
-      <div className="border-t border-gray-800 text-center pt-6 text-gray-500 text-sm">
-          © 2025 HanHan Bakery. All rights reserved.
-      </div>
-  </footer>
-);
-
-// --- MAIN COMPONENT ---
-
 const ProductDetailPage = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ Hook lấy thông tin URL
   
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -78,6 +39,19 @@ const ProductDetailPage = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [slug]);
+
+  // ✅ EFFECT MỚI: Tự động cuộn xuống phần review nếu có #reviews trên URL
+  useEffect(() => {
+    if (location.hash === '#reviews' && !loading && reviews) {
+        const element = document.getElementById('reviews');
+        if (element) {
+            // Đợi 1 xíu cho giao diện render ổn định rồi cuộn
+            setTimeout(() => {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 500);
+        }
+    }
+  }, [location, loading, reviews]);
 
   // Fetch dữ liệu sản phẩm
   useEffect(() => {
@@ -128,7 +102,7 @@ const ProductDetailPage = () => {
     }
   }, [product]);
 
-  // --- HÀM XỬ LÝ THÊM VÀO GIỎ HÀNG (CÓ UPDATE BADGE) ---
+  // --- HÀM XỬ LÝ THÊM VÀO GIỎ HÀNG ---
   const handleAddToCart = async () => {
     const token = localStorage.getItem("ACCESS_TOKEN");
     if (!token) {
@@ -148,7 +122,7 @@ const ProductDetailPage = () => {
             headers: { Authorization: `Bearer ${token}` }
         });
         
-        // ✅ BẮN SỰ KIỆN ĐỂ APP.JS CẬP NHẬT SỐ LƯỢNG GIỎ HÀNG
+        // BẮN SỰ KIỆN ĐỂ APP.JS CẬP NHẬT SỐ LƯỢNG GIỎ HÀNG
         window.dispatchEvent(new Event("CART_UPDATED"));
 
         alert(`Đã thêm thành công ${quantity} chiếc "${product.name}" vào giỏ hàng!`);
@@ -405,7 +379,8 @@ const ProductDetailPage = () => {
             </div>
 
             {/* --- PHẦN ĐÁNH GIÁ SẢN PHẨM --- */}
-            <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-12 border-t border-gray-100 pt-12">
+            {/* ✅ QUAN TRỌNG: Thêm id="reviews" vào đây để link cuộn tới */}
+            <div id="reviews" className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-12 border-t border-gray-100 pt-12">
                 
                 {/* CỘT TRÁI: DANH SÁCH ĐÁNH GIÁ */}
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
@@ -441,6 +416,14 @@ const ProductDetailPage = () => {
                                     </div>
                                     {rv.title && <h4 className="font-bold text-gray-700 text-sm mb-1">{rv.title}</h4>}
                                     <p className="text-gray-600 text-sm leading-relaxed">{rv.content}</p>
+                                    
+                                    {/* Hiển thị phản hồi của Admin nếu có */}
+                                    {rv.adminResponse && (
+                                        <div className="mt-3 ml-4 bg-gray-50 p-3 rounded-lg border-l-4 border-pink-400">
+                                            <p className="text-xs font-bold text-pink-600 mb-1">Phản hồi từ cửa hàng:</p>
+                                            <p className="text-sm text-gray-600">{rv.adminResponse}</p>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -472,7 +455,16 @@ const ProductDetailPage = () => {
                             </div>
                         </div>
 
-                        
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Tiêu đề (Không bắt buộc)</label>
+                            <input 
+                                type="text"
+                                value={reviewTitle}
+                                onChange={(e) => setReviewTitle(e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-pink-500 bg-white"
+                                placeholder="Ví dụ: Bánh rất ngon, giao hàng nhanh..."
+                            />
+                        </div>
 
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Nội dung chi tiết</label>
@@ -527,7 +519,7 @@ const ProductDetailPage = () => {
             )}
         </div>
       </main>
-      <Footer />
+      {/* <Footer /> // Tạm ẩn để tránh lỗi nếu bạn chưa import */}
     </div>
   );
 };

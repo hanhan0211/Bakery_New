@@ -22,6 +22,7 @@ import axios from "axios";
 import HomePage from "./pages/HomePage";
 import ProductPage from "./pages/ProductPage";
 import ContactPage from "./pages/ContactPage";
+import AboutPage from "./pages/AboutPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
@@ -30,6 +31,7 @@ import OrderDetailPage from "./pages/OrderDetailPage";
 import ProfilePage from "./pages/ProfilePage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+
 
 // Admin
 import AdminLayout from "./layouts/AdminLayout";
@@ -146,6 +148,7 @@ function App() {
             <div className="hidden md:flex space-x-8 font-medium text-gray-600">
               <Link to="/" className="hover:text-pink-600 transition">Trang chủ</Link>
               <Link to="/san-pham" className="hover:text-pink-600 transition">Sản phẩm</Link>
+              <Link to="/gioi-thieu" className="hover:text-pink-600 transition">Giới thiệu</Link>
               <Link to="/lien-he" className="hover:text-pink-600 transition">Liên hệ</Link>
             </div>
 
@@ -229,6 +232,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/san-pham" element={<ProductPage />} />
           <Route path="/lien-he" element={<ContactPage />} />
+          <Route path="/gioi-thieu" element={<AboutPage />} />
           <Route path="/san-pham/:slug" element={<ProductDetailPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/my-orders" element={<MyOrdersPage />} />
@@ -237,6 +241,7 @@ function App() {
           <Route path="/profile" element={currentUser ? <ProfilePage /> : <Navigate to="/login" />} />
           <Route path="/login" element={<Login setCurrentUser={setCurrentUser} />} />
           <Route path="/register" element={<Register />} />
+          
 
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route index element={<Dashboard />} />

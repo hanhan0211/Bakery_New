@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
-  Trash2, Minus, Plus, ShoppingBag, ArrowRight, CreditCard, Truck, CheckSquare, Square
+  Trash2, Minus, Plus, ShoppingBag, ArrowRight, CreditCard, CheckSquare, Square
 } from 'lucide-react';
 
 // --- HELPER ---
@@ -17,6 +17,7 @@ const CartPage = () => {
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     
+    // Lưu danh sách ID các sản phẩm được chọn (Dạng String)
     const [selectedItems, setSelectedItems] = useState([]); 
     
     const navigate = useNavigate();
@@ -44,14 +45,15 @@ const CartPage = () => {
         fetchCart();
     }, []);
 
-    // --- FIX LỖI CRASH Ở ĐÂY ---
+    // --- TÍNH TỔNG TIỀN (Chỉ tính những món có trong selectedItems) ---
     const selectedTotal = useMemo(() => {
         if (!cart || !cart.items) return 0;
         return cart.items.reduce((total, item) => {
-            // ✅ Kiểm tra an toàn: Nếu sản phẩm bị null (đã bị xóa khỏi DB), bỏ qua
-            if (!item.product) return total;
+            if (!item.product) return total; // Bỏ qua sản phẩm lỗi
 
-            const productId = item.product._id || item.product;
+            // ✅ ÉP KIỂU STRING ĐỂ SO SÁNH CHÍNH XÁC
+            const productId = String(item.product._id || item.product);
+            
             if (selectedItems.includes(productId)) { 
                 return total + (item.price * item.qty);
             }
@@ -59,7 +61,9 @@ const CartPage = () => {
         }, 0);
     }, [cart, selectedItems]);
 
-    const handleSelectItem = (productId) => {
+    // --- CHỌN 1 SẢN PHẨM ---
+    const handleSelectItem = (rawId) => {
+        const productId = String(rawId); // Luôn ép về String
         if (selectedItems.includes(productId)) {
             setSelectedItems(selectedItems.filter(id => id !== productId));
         } else {
@@ -67,32 +71,39 @@ const CartPage = () => {
         }
     };
 
-    // --- FIX LỖI CRASH Ở ĐÂY NỮA ---
+    // --- CHỌN TẤT CẢ ---
     const handleSelectAll = () => {
         if (!cart || !cart.items) return;
         
-        // Lọc ra các sản phẩm hợp lệ (không null)
-        const validItems = cart.items.filter(item => item.product);
+        // Lấy danh sách ID hợp lệ (ép về String hết)
+        const validItemIds = cart.items
+            .filter(item => item.product)
+            .map(item => String(item.product._id || item.product));
 
-        if (selectedItems.length === validItems.length) {
-            setSelectedItems([]);
+        if (selectedItems.length === validItemIds.length) {
+            setSelectedItems([]); // Bỏ chọn hết
         } else {
-            const allIds = validItems.map(item => item.product._id || item.product);
-            setSelectedItems(allIds);
+            setSelectedItems(validItemIds); // Chọn hết
         }
     };
 
+    // --- NÚT MUA HÀNG (QUAN TRỌNG NHẤT) ---
     const handleCheckout = () => {
         if (selectedItems.length === 0) {
             alert("Bạn chưa chọn sản phẩm nào để thanh toán!");
             return;
         }
         
-        // Lọc item hợp lệ và nằm trong danh sách chọn
-        const itemsToCheckout = cart.items.filter(item => 
-            item.product && selectedItems.includes(item.product._id || item.product)
-        );
+        // ✅ FIX LỖI GỘP ĐƠN: Lọc kỹ càng dựa trên String ID
+        const itemsToCheckout = cart.items.filter(item => {
+            if (!item.product) return false;
+            const productId = String(item.product._id || item.product);
+            return selectedItems.includes(productId);
+        });
 
+        console.log("Sản phẩm chuyển sang thanh toán:", itemsToCheckout); // Debug xem đúng chưa
+
+        // Chuyển sang trang Checkout với đúng danh sách đã lọc
         navigate('/checkout', { state: { items: itemsToCheckout, total: selectedTotal } });
     };
 
@@ -113,8 +124,8 @@ const CartPage = () => {
         }
     };
 
-    // Hàm xóa sản phẩm
-    const handleRemoveItem = async (productId) => {
+    const handleRemoveItem = async (rawId) => {
+        const productId = String(rawId);
         const token = getToken();
         if (!window.confirm("Bạn có chắc muốn xóa bánh này khỏi giỏ?")) return;
         try {
@@ -122,6 +133,7 @@ const CartPage = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setCart(res.data);
+            // Xóa khỏi danh sách đang chọn nếu có
             setSelectedItems(selectedItems.filter(id => id !== productId));
         } catch (err) {
             console.error("Lỗi xóa:", err);
@@ -132,15 +144,15 @@ const CartPage = () => {
     const handleRemoveInvalidItem = async (itemId) => {
          const token = getToken();
          try {
-             // Với item lỗi, ta có thể cần endpoint xóa đặc biệt hoặc gửi itemId thay vì productId
-             // Tạm thời dùng lại API xóa theo productId nếu backend hỗ trợ, hoặc cần backend xử lý riêng
-             // Ở đây mình tạm thời gọi API cũ, hy vọng backend xử lý được item không tồn tại
+             // Gọi API xóa (có thể backend cần xử lý riêng cho trường hợp này)
              const res = await axios.delete(`http://localhost:5000/api/cart/item/${itemId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setCart(res.data);
          } catch(err) {
-             console.log("Không thể xóa item lỗi tự động");
+             console.log("Không thể xóa item lỗi tự động", err);
+             // Nếu API lỗi, reload lại trang để đồng bộ
+             window.location.reload();
          }
     }
 
@@ -181,6 +193,7 @@ const CartPage = () => {
                     {/* LIST ITEM */}
                     <div className="w-full lg:w-2/3 space-y-4">
                         
+                        {/* HEADER CHỌN TẤT CẢ */}
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
                              <button 
                                 onClick={handleSelectAll}
@@ -196,22 +209,25 @@ const CartPage = () => {
                         </div>
 
                         {cart.items.map((item, index) => {
-                            // ✅ CHECK AN TOÀN: Nếu sản phẩm bị xóa (null), hiển thị cảnh báo thay vì crash
+                            // CHECK ITEM LỖI (Sản phẩm bị xóa khỏi DB)
                             if (!item.product) {
                                 return (
                                     <div key={index} className="bg-red-50 p-4 rounded-2xl border border-red-100 flex justify-between items-center">
-                                        <span className="text-red-500 text-sm">Sản phẩm này không còn tồn tại hoặc đã bị xóa.</span>
+                                        <span className="text-red-500 text-sm">Sản phẩm này không còn tồn tại.</span>
                                         <button onClick={() => handleRemoveInvalidItem(item._id || "unknown")} className="text-red-600 hover:underline text-sm font-bold">Xóa bỏ</button>
                                     </div>
                                 )
                             }
 
-                            const productId = item.product._id || item.product;
+                            // ✅ LUÔN ÉP KIỂU STRING ĐỂ SO SÁNH
+                            const rawId = item.product._id || item.product;
+                            const productId = String(rawId);
                             const isSelected = selectedItems.includes(productId);
 
                             return (
                                 <div key={index} className={`bg-white p-4 rounded-2xl shadow-sm border transition-all flex gap-4 items-center ${isSelected ? 'border-pink-300 ring-1 ring-pink-100' : 'border-gray-100'}`}>
                                     
+                                    {/* NÚT TICK CHỌN */}
                                     <button onClick={() => handleSelectItem(productId)}>
                                         {isSelected ? (
                                             <CheckSquare className="text-pink-600 flex-shrink-0" size={24} />
@@ -220,15 +236,18 @@ const CartPage = () => {
                                         )}
                                     </button>
 
+                                    {/* ẢNH SẢN PHẨM */}
                                     <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden border border-gray-100">
                                         <img src={getImageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" onError={(e) => {e.target.src = 'https://via.placeholder.com/150'}} />
                                     </div>
 
+                                    {/* THÔNG TIN */}
                                     <div className="flex-grow">
                                         <h3 className="font-bold text-gray-800 text-lg mb-1">{item.name}</h3>
                                         <div className="text-pink-600 font-bold">{item.price?.toLocaleString()}đ</div>
                                     </div>
 
+                                    {/* TĂNG GIẢM / XÓA */}
                                     <div className="flex flex-col items-end gap-4">
                                         <div className="flex items-center border border-gray-200 rounded-lg h-9">
                                             <button 
