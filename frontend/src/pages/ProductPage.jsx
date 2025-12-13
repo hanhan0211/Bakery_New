@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader, Filter, ChevronDown, Banknote, Coffee, ShoppingCart, Plus, Check } from 'lucide-react'; 
-import { Link, useSearchParams, useNavigate } from 'react-router-dom'; // ✅ Thêm useNavigate
+import { Search, Loader, Filter, ChevronDown, Banknote, Coffee, ShoppingCart, Plus, ArrowUpDown } from 'lucide-react'; 
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-// ✅ Danh sách các vị bánh
 const FLAVORS = ['Vani', 'Socola', 'Dâu', 'Matcha', 'Phô mai', 'Trái cây', 'Cà phê', 'Khác'];
 
 const getImageUrl = (path) => {
@@ -16,36 +15,38 @@ const ProductPage = () => {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
-    
-    // ✅ State để biết sản phẩm nào đang được thêm vào giỏ (Loading button)
     const [addingId, setAddingId] = useState(null);
 
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
 
     const [searchParams, setSearchParams] = useSearchParams();
-    const navigate = useNavigate(); // ✅ Hook điều hướng
+    const navigate = useNavigate();
 
+    // Lấy params từ URL
     const maxPriceFilter = parseInt(searchParams.get("maxPrice")) || 1000000;
     const categoryId = searchParams.get("category") || "";
     const searchTerm = searchParams.get("q") || "";
     const flavorFilter = searchParams.get("flavor") || "";
+    
+    // ✅ STATE SẮP XẾP (Mặc định: newest)
+    const [sortBy, setSortBy] = useState("newest");
 
-    // 1. Load Categories
+    // Load Categories
     useEffect(() => {
         axios.get("http://localhost:5000/api/categories")
             .then(res => setCategories(res.data))
             .catch(err => console.log(err));
     }, []);
 
-    // 2. Reset khi thay đổi bộ lọc
+    // Reset danh sách khi bộ lọc thay đổi
     useEffect(() => {
         setProducts([]);
         setPage(1);
         setHasMore(true);
-    }, [maxPriceFilter, categoryId, searchTerm, flavorFilter]);
+    }, [maxPriceFilter, categoryId, searchTerm, flavorFilter, sortBy]); // <--- Thêm sortBy
 
-    // 3. Load Products
+    // Load Products
     useEffect(() => {
         const fetchProducts = async () => {
             try {
@@ -56,7 +57,8 @@ const ProductPage = () => {
                     flavor: flavorFilter || undefined,
                     page: page, 
                     limit: 6,  
-                    maxPrice: maxPriceFilter < 1000000 ? maxPriceFilter : undefined
+                    maxPrice: maxPriceFilter < 1000000 ? maxPriceFilter : undefined,
+                    sort: sortBy // <--- Gửi biến sort lên server
                 };
 
                 const res = await axios.get("http://localhost:5000/api/products", { params });
@@ -82,28 +84,22 @@ const ProductPage = () => {
 
         const t = setTimeout(fetchProducts, 300);
         return () => clearTimeout(t);
-    }, [page, maxPriceFilter, categoryId, searchTerm, flavorFilter]); 
+    }, [page, maxPriceFilter, categoryId, searchTerm, flavorFilter, sortBy]);
 
 
     // --- HANDLERS ---
-    const handlePriceChange = (e) => {
-        setSearchParams(prev => { prev.set("maxPrice", e.target.value); return prev; });
-    };
+    const handlePriceChange = (e) => setSearchParams(prev => { prev.set("maxPrice", e.target.value); return prev; });
+    
+    const handleCategoryChange = (id) => setSearchParams(prev => { 
+        if (id) prev.set("category", id); else prev.delete("category"); 
+        return prev; 
+    });
 
-    const handleCategoryChange = (id) => {
-        setSearchParams(prev => { 
-            if (id) prev.set("category", id); else prev.delete("category"); 
-            return prev; 
-        });
-    };
-
-    const handleFlavorChange = (flavor) => {
-        setSearchParams(prev => { 
-            if (flavor === flavorFilter) prev.delete("flavor");
-            else prev.set("flavor", flavor); 
-            return prev; 
-        });
-    };
+    const handleFlavorChange = (flavor) => setSearchParams(prev => { 
+        if (flavor === flavorFilter) prev.delete("flavor");
+        else prev.set("flavor", flavor); 
+        return prev; 
+    });
 
     const handleSearch = (e) => {
         const val = e.target.value;
@@ -113,49 +109,29 @@ const ProductPage = () => {
         });
     };
 
-    const clearFilters = () => setSearchParams({});
-
-    const handleLoadMore = () => {
-        setPage(prev => prev + 1);
+    const clearFilters = () => {
+        setSearchParams({});
+        setSortBy("newest"); // Reset về mới nhất
     };
 
-    // ✅ HÀM THÊM VÀO GIỎ HÀNG NHANH
-    const handleQuickAdd = async (e, product) => {
-        // 🛑 Ngăn chặn hành vi mặc định (không cho thẻ Link chuyển trang)
-        e.preventDefault(); 
-        e.stopPropagation();
+    const handleLoadMore = () => setPage(prev => prev + 1);
 
+    const handleQuickAdd = async (e, product) => {
+        e.preventDefault(); e.stopPropagation();
         const token = localStorage.getItem("ACCESS_TOKEN");
         if (!token) {
-            if(window.confirm("Bạn cần đăng nhập để mua bánh. Đăng nhập ngay?")) {
-                navigate("/login");
-            }
+            if(window.confirm("Bạn cần đăng nhập để mua bánh. Đăng nhập ngay?")) navigate("/login");
             return;
         }
-
-        // Set loading cho đúng sản phẩm này
         setAddingId(product._id);
-
         try {
             await axios.post('http://localhost:5000/api/cart/add', {
-                productId: product._id,
-                qty: 1, // Mặc định thêm 1
-                attrs: {}
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            
-            // 🔥 Cập nhật badge trên Navbar
+                productId: product._id, qty: 1, attrs: {}
+            }, { headers: { Authorization: `Bearer ${token}` } });
             window.dispatchEvent(new Event("CART_UPDATED"));
-
-            // Có thể dùng Toast library để đẹp hơn, ở đây dùng alert tạm
-            // alert(`Đã thêm 1 ${product.name} vào giỏ!`); 
-            
         } catch (err) {
-            console.error(err);
-            alert("Lỗi khi thêm vào giỏ hàng");
+            console.error(err); alert("Lỗi thêm giỏ hàng");
         } finally {
-            // Tắt loading sau 500ms để người dùng kịp nhìn thấy hiệu ứng
             setTimeout(() => setAddingId(null), 500);
         }
     };
@@ -172,10 +148,9 @@ const ProductPage = () => {
             <div className="container mx-auto px-4 pb-16 flex-grow">
                 <div className="flex flex-col lg:flex-row gap-8">
                     
-                    {/* SIDEBAR */}
+                    {/* SIDEBAR BỘ LỌC (Giữ nguyên) */}
                     <aside className="w-full lg:w-1/4 space-y-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-pink-100 sticky top-20">
-                            
                             {/* CATEGORIES */}
                             <div className="mb-8">
                                 <h3 className="font-bold text-xl mb-4 flex items-center gap-2"><Filter className="w-5 h-5 text-pink-500" /> Danh Mục</h3>
@@ -197,9 +172,7 @@ const ProductPage = () => {
 
                             {/* FLAVOR FILTER */}
                             <div className="mb-8 border-t border-gray-100 pt-6">
-                                <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
-                                    <Coffee className="w-5 h-5 text-pink-500" /> Hương Vị
-                                </h3>
+                                <h3 className="font-bold text-xl mb-4 flex items-center gap-2"><Coffee className="w-5 h-5 text-pink-500" /> Hương Vị</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {FLAVORS.map(flavor => (
                                         <button
@@ -207,7 +180,7 @@ const ProductPage = () => {
                                             onClick={() => handleFlavorChange(flavor)}
                                             className={`px-3 py-1.5 rounded-full text-sm border transition-all ${
                                                 flavor === flavorFilter
-                                                    ? "bg-pink-500 text-white border-pink-500 shadow-md transform scale-105"
+                                                    ? "bg-pink-50 text-white border-pink-500 shadow-md transform scale-105"
                                                     : "bg-white border-gray-200 text-gray-600 hover:border-pink-300 hover:text-pink-500"
                                             }`}
                                         >
@@ -228,10 +201,25 @@ const ProductPage = () => {
 
                     {/* PRODUCT LIST */}
                     <main className="w-full lg:w-3/4">
-                        <div className="mb-8 bg-white p-4 rounded-2xl shadow-sm border border-pink-100">
-                            <div className="relative">
+                        <div className="mb-8 bg-white p-4 rounded-2xl shadow-sm border border-pink-100 flex flex-col sm:flex-row gap-4 justify-between items-center">
+                            
+                            {/* Thanh tìm kiếm */}
+                            <div className="relative w-full sm:w-2/3">
                                 <input type="text" placeholder="Bạn đang tìm bánh gì..." value={searchTerm} onChange={handleSearch} className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-200 transition" />
                                 <Search className="w-5 h-5 text-gray-400 absolute left-4 top-3.5" />
+                            </div>
+
+                            {/* ✅ DROPDOWN SẮP XẾP: CHỈ CÒN MỚI NHẤT / CŨ NHẤT */}
+                            <div className="w-full sm:w-1/3 flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-1 relative border border-gray-100">
+                                <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                                <select 
+                                    value={sortBy} 
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                    className="w-full py-2 bg-transparent border-none focus:outline-none text-sm text-gray-700 cursor-pointer font-medium"
+                                >
+                                    <option value="newest">✨ Mới nhất</option>
+                                    <option value="oldest">📅 Cũ nhất</option>
+                                </select>
                             </div>
                         </div>
 
@@ -256,34 +244,18 @@ const ProductPage = () => {
                                             className="group bg-white p-3 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-transparent hover:border-pink-100 block relative overflow-hidden"
                                         >
                                             <div className="h-60 rounded-xl overflow-hidden bg-gray-100 mb-4 relative">
-                                                <img 
-                                                    src={img} 
-                                                    alt={product.name} 
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition duration-700" 
-                                                    onError={(e) => {e.target.src = 'https://via.placeholder.com/400x400?text=Error'}} 
-                                                />
+                                                <img src={img} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-700" onError={(e) => {e.target.src = 'https://via.placeholder.com/400x400?text=Error'}} />
                                                 
-                                                {/* Overlay khi hết hàng */}
                                                 {product.stock === 0 && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white font-bold uppercase backdrop-blur-[2px]">Hết hàng</div>}
                                                 
-                                                {/* ✅ NÚT THÊM NHANH VÀO GIỎ HÀNG */}
                                                 {product.stock > 0 && (
                                                     <button 
                                                         onClick={(e) => handleQuickAdd(e, product)}
                                                         disabled={isAdding}
-                                                        className={`absolute bottom-3 right-3 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 transform 
-                                                            ${isAdding 
-                                                                ? "bg-white text-pink-500 opacity-100 scale-100" 
-                                                                : "bg-white text-pink-600 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 hover:bg-pink-600 hover:text-white"
-                                                            }
-                                                        `}
+                                                        className={`absolute bottom-3 right-3 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 transform ${isAdding ? "bg-white text-pink-500 opacity-100 scale-100" : "bg-white text-pink-600 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 hover:bg-pink-600 hover:text-white"}`}
                                                         title="Thêm nhanh vào giỏ"
                                                     >
-                                                        {isAdding ? (
-                                                            <Loader className="w-5 h-5 animate-spin" />
-                                                        ) : (
-                                                            <Plus className="w-6 h-6" />
-                                                        )}
+                                                        {isAdding ? <Loader className="w-5 h-5 animate-spin" /> : <Plus className="w-6 h-6" />}
                                                     </button>
                                                 )}
                                             </div>
@@ -293,10 +265,8 @@ const ProductPage = () => {
                                                 <p className="text-gray-500 text-sm mb-2 line-clamp-1">
                                                     {product.flavor ? `Vị: ${product.flavor}` : (product.category?.name || 'Bánh ngọt')}
                                                 </p>
-                                                
                                                 <div className="flex justify-between items-center">
                                                     <p className="text-pink-600 text-xl font-bold">{formatCurrency(product.price)}</p>
-                                                    {/* Icon giỏ hàng nhỏ bên cạnh giá để trang trí */}
                                                     <div className="w-8 h-8 rounded-full bg-pink-50 flex items-center justify-center text-pink-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                                         <ShoppingCart size={16} />
                                                     </div>
@@ -310,15 +280,10 @@ const ProductPage = () => {
 
                         {/* Nút Xem Thêm */}
                         <div className="mt-12 text-center">
-                            {loading && (
-                                <div className="flex justify-center mb-4"><Loader className="w-8 h-8 animate-spin text-pink-500" /></div>
-                            )}
+                            {loading && <div className="flex justify-center mb-4"><Loader className="w-8 h-8 animate-spin text-pink-500" /></div>}
                             
                             {!loading && hasMore && products.length > 0 && (
-                                <button 
-                                    onClick={handleLoadMore}
-                                    className="bg-white border border-pink-200 text-pink-600 hover:bg-pink-50 font-bold py-3 px-8 rounded-full shadow-sm hover:shadow-md transition-all transform active:scale-95 flex items-center gap-2 mx-auto"
-                                >
+                                <button onClick={handleLoadMore} className="bg-white border border-pink-200 text-pink-600 hover:bg-pink-50 font-bold py-3 px-8 rounded-full shadow-sm hover:shadow-md transition-all transform active:scale-95 flex items-center gap-2 mx-auto">
                                     Xem thêm bánh <ChevronDown size={20} />
                                 </button>
                             )}
@@ -327,7 +292,6 @@ const ProductPage = () => {
                                 <p className="text-gray-400 italic">Đã hiển thị tất cả sản phẩm</p>
                             )}
                         </div>
-
                     </main>
                 </div>
             </div>
