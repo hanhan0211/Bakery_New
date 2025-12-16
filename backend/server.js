@@ -1,4 +1,3 @@
-
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -22,32 +21,37 @@ import uploadRoute from "./routes/upload.route.js";
 import userRoutes from "./routes/user.routes.js";
 import bannerRoute from "./routes/banner.route.js";
 
-// Import middleware (nếu có global middleware)
+// Import middleware
 import { notFound, errorHandler } from "./middleware/error.middleware.js";
 
 const app = express();
 
 app.use(cors({
-  origin: "*",
+  origin: "http://localhost:5173", // Nên để cụ thể domain frontend để an toàn cookie
   credentials: true
 }));
 
 app.use(express.json());
 app.use(cookieParser());
 
-// --- Thêm đoạn này để serve file upload ---
+// --- Cấu hình serve file upload ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use('/uploads', express.static('uploads'));
 
-
+// --- ĐĂNG KÝ CÁC ROUTE ---
 app.use("/api/auth", authRoute);
 app.use("/api/categories", categoryRoute);
 app.use("/api/products", productRoute);
 app.use("/api/cart", cartRoute);
 app.use("/api/orders", orderRoute);
-app.use("/api/contact", contactRoute);
+
+// 👇 SỬA LỖI 1: Thêm chữ 's' vào contacts để khớp với frontend
+app.use("/api/contacts", contactRoute); 
+
+// 👇 SỬA LỖI 2: Thêm route upload (bạn đã import nhưng quên dùng)
+app.use("/api/upload", uploadRoute);
+
 app.use("/api/reviews", reviewRoute);
 app.use("/api/users", userRoutes);
 app.use("/api/banners", bannerRoute);
