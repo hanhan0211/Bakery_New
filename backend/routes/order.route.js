@@ -6,31 +6,31 @@ import {
     listOrders, 
     updateOrderStatus, 
     getDashboardStats,
-    cancelOrder 
+    cancelOrder,
+    confirmOrder // <--- MỚI: Import hàm xác nhận
 } from "../controllers/order.controller.js";
 
 const router = express.Router();
 
-// Tạo đơn hàng
+// 1. Tạo đơn hàng (User)
 router.post("/", verifyToken, addOrderItems);
 
-// Lấy danh sách (Admin xem hết, User xem của mình)
+// 2. Lấy danh sách (Admin xem hết, User xem của mình)
 router.get("/", verifyToken, listOrders);
 
-// Thống kê Dashboard (Chỉ Admin)
+// 3. Thống kê Dashboard (Chỉ Admin)
 router.get("/stats", verifyToken, isAdmin, getDashboardStats);
 
-// Lấy chi tiết 1 đơn
+// 4. Lấy chi tiết 1 đơn
 router.get("/:id", verifyToken, getOrder);
 
-// ✅ Cập nhật trạng thái đơn hàng (Admin) - Fix lỗi 404
+// 5. Admin xác nhận đơn hàng & Gửi mail chi tiết (MỚI)
+router.put("/:id/confirm", verifyToken, isAdmin, confirmOrder);
+
+// 6. Cập nhật trạng thái khác (Giao hàng/Hoàn thành) (Admin)
 router.put("/:id", verifyToken, isAdmin, updateOrderStatus); 
 
-// Hủy đơn hàng (User)
+// 7. Hủy đơn hàng (User)
 router.put("/:id/cancel", verifyToken, cancelOrder);
-
-// (Optional) Các route cũ nếu bạn còn dùng nút riêng lẻ ở đâu đó, nếu không thì bỏ cũng được
-router.put("/:id/pay", verifyToken, updateOrderStatus); 
-router.put("/:id/deliver", verifyToken, isAdmin, updateOrderStatus);
 
 export default router;

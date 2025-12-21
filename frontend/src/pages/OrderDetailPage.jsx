@@ -3,13 +3,37 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
     Loader, MapPin, CreditCard, ChevronLeft, Package, Calendar, 
-    RefreshCw, Star, ExternalLink, XCircle 
+    RefreshCw, Star, XCircle 
 } from 'lucide-react';
 
-const getImageUrl = (path) => {
-    if (!path) return 'https://via.placeholder.com/150';
-    if (path.startsWith('http')) return path;
-    return `http://localhost:5000${path}`;
+// ✅ HÀM XỬ LÝ ẢNH CHUẨN (FIX LỖI THIẾU /uploads/)
+const getImageUrl = (input) => {
+    const PLACEHOLDER_IMG = 'https://placehold.co/150?text=No+Image';
+
+    if (!input) return PLACEHOLDER_IMG;
+
+    let path = input;
+
+    // 1. Xử lý Mảng/Object
+    if (Array.isArray(path)) path = path.length > 0 ? path[0] : null;
+    if (path && typeof path === 'object') path = path.url || path.secure_url || path.image || null;
+
+    if (typeof path !== 'string') return PLACEHOLDER_IMG;
+
+    // 2. Ảnh Online -> Giữ nguyên
+    if (path.startsWith('http')) return path; 
+    
+    // 3. Ảnh Local -> Xử lý đường dẫn
+    // Đảm bảo bắt đầu bằng dấu /
+    let cleanPath = path.startsWith('/') ? path : `/${path}`;
+
+    // 🔥 QUAN TRỌNG: Kiểm tra xem có chữ /uploads/ chưa, nếu chưa thì thêm vào
+    // Vì server bạn cấu hình static folder là /uploads
+    if (!cleanPath.includes('/uploads/')) {
+        cleanPath = `/uploads${cleanPath}`;
+    }
+
+    return `http://localhost:5000${cleanPath}`;
 };
 
 const OrderDetailPage = () => {
@@ -32,7 +56,7 @@ const OrderDetailPage = () => {
                 });
                 setOrder(res.data);
             } catch (err) {
-                console.error(err);
+                console.error("Lỗi tải đơn hàng:", err);
             } finally {
                 setLoading(false);
             }
@@ -66,17 +90,19 @@ const OrderDetailPage = () => {
             alert("Bạn cần đăng nhập để mua hàng");
             return navigate("/login");
         }
-        const productId = item.product._id || item.product; 
+        
+        const productId = item.product?._id || item.product; 
+        
         setProcessingItem(item._id || productId); 
         try {
             await axios.post('http://localhost:5000/api/cart/add', {
                 productId: productId,
                 qty: 1, 
-                attrs: {}
+                attrs: {} 
             }, { headers: { Authorization: `Bearer ${token}` } });
             
             window.dispatchEvent(new Event("CART_UPDATED"));
-            navigate("/cart", { state: { newProductId: productId } }); 
+            navigate("/cart"); 
         } catch (err) {
             alert("Sản phẩm này có thể đã hết hàng hoặc bị xóa.");
         } finally {
@@ -89,16 +115,18 @@ const OrderDetailPage = () => {
 
     const statusConfig = {
         pending: { label: 'Đang xử lý', color: 'bg-yellow-100 text-yellow-800' },
-        delivered: { label: 'Đang giao hàng', color: 'bg-blue-100 text-blue-800' },
+        confirmed: { label: 'Đã xác nhận', color: 'bg-blue-100 text-blue-800' },
+        delivered: { label: 'Đang giao hàng', color: 'bg-indigo-100 text-indigo-800' },
         completed: { label: 'Giao thành công', color: 'bg-green-100 text-green-700' },
         cancelled: { label: 'Đã hủy', color: 'bg-red-100 text-red-700' },
     };
     
     const currentStatus = statusConfig[order.status] || { label: order.status, color: 'bg-gray-100' };
     const isCompleted = order.status === 'completed';
-    
-    // ✅ Logic: Chỉ hiện nút hủy khi còn pending
     const canCancel = order.status === 'pending';
+
+    // Xử lý list items
+    const orderItemsList = order.items || order.orderItems || [];
 
     return (
         <div className="container mx-auto px-4 py-8 bg-gray-50 min-h-screen font-sans">
@@ -111,6 +139,7 @@ const OrderDetailPage = () => {
             </Link>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-5xl mx-auto">
+                {/* Header đơn hàng */}
                 <div className="bg-pink-50/50 p-6 border-b border-pink-100 flex flex-wrap justify-between items-center gap-4">
                     <div>
                         <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -148,10 +177,12 @@ const OrderDetailPage = () => {
                                 <MapPin size={18} className="text-pink-600"/> Địa chỉ nhận hàng
                             </h3>
                             <div className="text-sm space-y-3">
-                                <p><span className="font-bold">{order.shippingAddress.fullName}</span> - {order.shippingAddress.phone}</p>
+                                <p className="font-bold text-lg">{order.shippingAddress.fullName}</p>
+                                <p>SĐT: {order.shippingAddress.phone}</p>
                                 <p className="text-gray-600">{order.shippingAddress.addressLine}, {order.shippingAddress.city}</p>
                             </div>
                         </div>
+                        
                          <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
                             <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-200 pb-3">
                                 <CreditCard size={18} className="text-pink-600"/> Thanh toán
@@ -167,21 +198,29 @@ const OrderDetailPage = () => {
 
                     {/* CỘT PHẢI (Sản phẩm) */}
                     <div className="lg:col-span-2">
-                        <h3 className="font-bold text-gray-800 mb-4 text-lg">Sản phẩm ({order.items.length})</h3>
+                        <h3 className="font-bold text-gray-800 mb-4 text-lg">Sản phẩm ({orderItemsList.length})</h3>
                         <div className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
-                            {order.items.map((item, idx) => {
+                            {orderItemsList.map((item, idx) => {
                                 const productSlug = item.product?.slug;
                                 const productId = item.product?._id || item.product;
                                 const productLink = productSlug ? `/san-pham/${productSlug}` : `/san-pham/${productId}`;
+                                
+                                // --- 🔥 LOGIC TÌM ẢNH ĐÚNG ---
+                                // Tìm ảnh theo thứ tự: Ảnh trong đơn -> Ảnh đơn string -> Ảnh mảng -> Ảnh string trong product
+                                const p = item.product || {};
+                                const finalImage = item.image || p.image || (p.images && p.images[0]);
 
                                 return (
                                     <div key={idx} className="flex flex-col sm:flex-row gap-4 p-4 border-b border-gray-200 last:border-0 bg-white items-start sm:items-center">
-                                            <Link to={productLink} className="w-20 h-20 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0 relative group">
+                                            <Link to={productLink} className="w-20 h-20 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0 relative group bg-white">
                                                 <img 
-                                                    src={getImageUrl(item.image)} 
+                                                    src={getImageUrl(finalImage)} 
                                                     alt={item.name} 
                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                                                    onError={(e) => {e.target.src = 'https://via.placeholder.com/150'}}
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = 'https://placehold.co/150?text=No+Image';
+                                                    }}
                                                 />
                                             </Link>
                                             <div className="flex-grow">
@@ -198,7 +237,7 @@ const OrderDetailPage = () => {
                                                         disabled={!!processingItem}
                                                         className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded text-gray-700 hover:bg-gray-50 hover:text-pink-600 transition disabled:opacity-50"
                                                     >
-                                                        {processingItem === (item._id || item.product) ? <Loader size={14} className="animate-spin text-pink-600"/> : <RefreshCw size={14} />} 
+                                                        {processingItem === (item._id || productId) ? <Loader size={14} className="animate-spin text-pink-600"/> : <RefreshCw size={14} />} 
                                                         Mua lại
                                                     </button>
                                                     {isCompleted && (
@@ -233,4 +272,5 @@ const OrderDetailPage = () => {
         </div>
     );
 };
+
 export default OrderDetailPage;

@@ -2,26 +2,36 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { 
-    MapPin, Phone, User, CreditCard, Banknote, 
-    ChevronLeft, CheckCircle, Loader, Save 
+    MapPin, Banknote, ChevronLeft, CheckCircle, Loader, Save 
 } from 'lucide-react';
 
-// ✅ HÀM XỬ LÝ ẢNH (Phiên bản chuẩn, không bị lỗi crash)
+// ✅ HÀM XỬ LÝ ẢNH (Bao sân mọi trường hợp)
 const getImageUrl = (input) => {
-    if (!input) return 'https://placehold.co/150?text=No+Image';
+    // 1. Kiểm tra null/undefined
+    if (!input) return 'https://via.placeholder.com/150?text=No+Image';
 
     let path = input;
-    // Xử lý nếu là mảng hoặc object
-    if (Array.isArray(path)) path = path[0];
-    if (typeof path === 'object' && path !== null) path = path.url || path.image || ''; 
-    if (typeof path !== 'string') return 'https://placehold.co/150?text=Err+Type';
 
-    // Xử lý đường dẫn
-    if (path.startsWith('http')) return path;
+    // 2. Nếu là mảng -> lấy phần tử đầu
+    if (Array.isArray(path)) {
+        path = path.length > 0 ? path[0] : null;
+    }
+
+    // 3. Nếu là object (Cloudinary/Upload) -> lấy url
+    if (path && typeof path === 'object') {
+        path = path.url || path.secure_url || path.image || null;
+    }
+
+    // 4. Nếu vẫn không phải string -> trả về ảnh lỗi
+    if (typeof path !== 'string') return 'https://via.placeholder.com/150?text=Err+Type';
+
+    // 5. Xử lý đường dẫn
+    if (path.startsWith('http')) return path; // Ảnh online
     
-    let finalPath = path;
-    if (!finalPath.startsWith('/')) finalPath = `/${finalPath}`;
-    if (!finalPath.includes('/uploads/')) finalPath = `/uploads${finalPath}`;
+    // Ảnh local: Đảm bảo có dấu / ở đầu và không bị trùng /uploads
+    let finalPath = path.startsWith('/') ? path : `/${path}`;
+    // Nếu path chưa có /uploads/ và server cần nó (tùy config của bạn)
+    // if (!finalPath.includes('/uploads/')) finalPath = `/uploads${finalPath}`; 
 
     return `http://localhost:5000${finalPath}`;
 };
@@ -30,10 +40,10 @@ const CheckoutPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
+    // Lấy dữ liệu từ Cart truyền sang
     const { items, total } = location.state || { items: [], total: 0 };
     const [loading, setLoading] = useState(false);
     
-    // Form state
     const [shippingInfo, setShippingInfo] = useState({
         fullName: '',
         phone: '',
@@ -43,7 +53,11 @@ const CheckoutPage = () => {
 
     const [paymentMethod, setPaymentMethod] = useState('cod'); 
 
-    // Tự động điền thông tin
+    // Debug: Xem log để biết dữ liệu items thực tế là gì (F12 -> Console)
+    useEffect(() => {
+        console.log("Dữ liệu items nhận được:", items);
+    }, [items]);
+
     useEffect(() => {
         if (!items || items.length === 0) {
             navigate('/cart');
@@ -85,21 +99,21 @@ const CheckoutPage = () => {
         }
 
         setLoading(true);
-
-        // Lưu thông tin cho lần sau
         localStorage.setItem("SAVED_SHIPPING_INFO", JSON.stringify(shippingInfo));
 
+        // Chuẩn bị dữ liệu gửi lên Server
         const orderData = {
             orderItems: items.map(item => {
-                // ✅ LOGIC TÌM ẢNH ĐỂ LƯU VÀO ĐƠN HÀNG (Quan trọng)
-                const realImage = item.product?.image || item.product?.images?.[0] || item.image;
+                const p = item.product || {};
+                // Tìm ảnh chính xác để lưu vào DB (để sau này xem lịch sử đơn hàng vẫn thấy ảnh)
+                const realImage = item.image || p.image || (p.images && p.images[0]) || '';
 
                 return {
-                    product: item.product._id || item.product, // ID sản phẩm
-                    name: item.name || item.product?.name,
+                    product: p._id || item.product, 
+                    name: item.name || p.name,
                     qty: item.qty,
-                    price: item.price,
-                    image: realImage, // Lưu đường dẫn ảnh chính xác
+                    price: item.price, // Giá này đã là giá sau giảm (từ Cart truyền sang)
+                    image: realImage, 
                     attrs: item.attrs || {}
                 };
             }),
@@ -123,6 +137,8 @@ const CheckoutPage = () => {
             
             if (res.status === 201) {
                 alert("Đặt hàng thành công!");
+                // Xóa giỏ hàng (Frontend chỉ cần dispatch event để cập nhật badge, Backend đã tự xóa)
+                window.dispatchEvent(new Event("CART_UPDATED"));
                 navigate(`/order/${res.data._id}`);
             }
 
@@ -157,7 +173,7 @@ const CheckoutPage = () => {
                             </h2>
                             
                             <div className="absolute top-6 right-6 text-xs text-gray-400 flex items-center gap-1">
-                                <Save size={12}/> Tự động lưu cho lần sau
+                                <Save size={12}/> Tự động lưu
                             </div>
 
                             <div className="space-y-4">
@@ -205,34 +221,56 @@ const CheckoutPage = () => {
                             <h3 className="font-bold text-xl mb-4 text-gray-800">Đơn hàng ({items.length} món)</h3>
                             <div className="max-h-60 overflow-y-auto mb-4 scrollbar-thin">
                                 {items.map((item, idx) => {
-                                    // ✅ LOGIC TÌM ẢNH ĐỂ HIỂN THỊ
-                                    const displayImage = item.product?.image || item.product?.images?.[0] || item.image;
-                                    const displayName = item.name || item.product?.name;
+                                    // --- 🔍 FIX LOGIC HIỂN THỊ ẢNH ---
+                                    const p = item.product || {};
+                                    // Tìm ảnh: Ưu tiên item.image > p.image (string) > p.images (array)
+                                    const rawImage = item.image || p.image || (p.images && p.images.length > 0 ? p.images[0] : null);
+                                    
+                                    const displayName = item.name || p.name;
+                                    const displayPrice = item.price || 0;
 
                                     return (
                                         <div key={idx} className="flex gap-3 mb-4">
                                             {/* Ảnh sản phẩm */}
-                                            <img 
-                                                src={getImageUrl(displayImage)} 
-                                                alt={displayName} 
-                                                className="w-14 h-14 rounded-lg object-cover border"
-                                                onError={(e) => {e.target.onerror = null; e.target.src = 'https://placehold.co/150?text=No+Image'}} 
-                                            />
+                                            <div className="w-14 h-14 flex-shrink-0 border rounded-lg overflow-hidden bg-gray-100">
+                                                <img 
+                                                    src={getImageUrl(rawImage)} 
+                                                    alt={displayName} 
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        e.target.onerror = null; 
+                                                        e.target.src = 'https://via.placeholder.com/150?text=No+Image'
+                                                    }} 
+                                                />
+                                            </div>
                                             
-                                            <div>
-                                                <h4 className="font-medium text-sm line-clamp-1">{displayName}</h4>
-                                                <div className="text-xs text-gray-500">x{item.qty} - <span className="text-pink-600 font-bold">{item.price.toLocaleString()}đ</span></div>
+                                            <div className="flex-grow">
+                                                <h4 className="font-medium text-sm line-clamp-2 text-gray-800">{displayName}</h4>
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                    SL: <span className="font-bold">{item.qty}</span> 
+                                                    <span className="mx-2">|</span> 
+                                                    <span className="text-pink-600 font-bold">{displayPrice.toLocaleString()}đ</span>
+                                                </div>
                                             </div>
                                         </div>
                                     );
                                 })}
                             </div>
-                            <div className="border-t pt-4">
-                                <div className="flex justify-between items-center mb-6">
-                                    <span className="font-bold text-lg">Tổng cộng:</span>
+                            <div className="border-t pt-4 space-y-2">
+                                <div className="flex justify-between text-gray-600 text-sm">
+                                    <span>Tạm tính:</span>
+                                    <span>{total.toLocaleString()}đ</span>
+                                </div>
+                                <div className="flex justify-between text-gray-600 text-sm">
+                                    <span>Phí vận chuyển:</span>
+                                    <span>Miễn phí</span>
+                                </div>
+                                <div className="flex justify-between items-center pt-2 border-t border-dashed mt-2">
+                                    <span className="font-bold text-lg text-gray-800">Tổng cộng:</span>
                                     <span className="font-bold text-2xl text-pink-600">{total.toLocaleString()}đ</span>
                                 </div>
-                                <button type="submit" disabled={loading} className={`w-full py-4 rounded-xl font-bold text-white flex justify-center items-center gap-2 ${loading ? 'bg-gray-400' : 'bg-pink-600 hover:bg-pink-700'}`}>
+                                
+                                <button type="submit" disabled={loading} className={`w-full py-4 mt-4 rounded-xl font-bold text-white flex justify-center items-center gap-2 transition-all ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-pink-600 hover:bg-pink-700 shadow-lg shadow-pink-200'}`}>
                                     {loading ? <Loader className="animate-spin" /> : <CheckCircle />} Xác Nhận Đặt Hàng
                                 </button>
                             </div>
