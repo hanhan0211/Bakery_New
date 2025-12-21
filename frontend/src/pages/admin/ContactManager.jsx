@@ -37,7 +37,18 @@ const ContactManager = () => {
         return name.charAt(0).toUpperCase();
     };
 
-    const getImageUrl = (path) => path ? `http://localhost:5000${path}` : '';
+    // ✅ HÀM XỬ LÝ ẢNH ĐÃ SỬA LỖI
+    const getImageUrl = (path) => {
+        // 1. Nếu không có ảnh -> Trả về ảnh placeholder mới
+        if (!path) return 'https://placehold.co/300x200?text=No+Image';
+        
+        // 2. Nếu là link online (http) -> Trả về nguyên gốc
+        if (path.startsWith('http')) return path;
+
+        // 3. Nếu là ảnh upload -> Nối thêm domain server
+        const cleanPath = path.startsWith('/') ? path : `/${path}`;
+        return `http://localhost:5000${cleanPath}`;
+    };
 
     // === EFFECT ===
     useEffect(() => { fetchContacts(); }, []);
@@ -147,7 +158,7 @@ const ContactManager = () => {
         <div className="bg-gray-100 min-h-screen p-6 font-sans">
             <div className="max-w-7xl mx-auto h-[85vh] bg-white rounded-2xl shadow-xl overflow-hidden flex border border-gray-200">
                 
-                {/* --- CỘT TRÁI (ĐÃ LÀM GỌN) --- */}
+                {/* --- CỘT TRÁI --- */}
                 <div className="w-1/3 border-r border-gray-200 flex flex-col bg-white">
                     <div className="p-4 border-b border-gray-100 space-y-3">
                         <div className="flex justify-between items-center">
@@ -182,37 +193,16 @@ const ContactManager = () => {
                             const displayName = getDisplayName(contact.user_id);
 
                             return (
-                                <div 
-                                    key={contact._id} 
-                                    onClick={() => handleSelectTicket(contact)}
-                                    // Giao diện item gọn gàng
-                                    className={`p-4 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition relative group ${
-                                        selectedTicket?._id === contact._id ? 'bg-pink-50 hover:bg-pink-50' : ''
-                                    }`}
-                                >
-                                    {/* Dòng 1: Tên + Ngày */}
+                                <div key={contact._id} onClick={() => handleSelectTicket(contact)}
+                                    className={`p-4 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition relative group ${selectedTicket?._id === contact._id ? 'bg-pink-50 hover:bg-pink-50' : ''}`}>
                                     <div className="flex justify-between items-baseline mb-1">
-                                        <h4 className={`text-sm truncate max-w-[160px] ${isUnread ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
-                                            {displayName}
-                                        </h4>
-                                        <span className={`text-[10px] ${isUnread ? 'text-pink-600 font-bold' : 'text-gray-400'}`}>
-                                            {new Date(contact.updatedAt).toLocaleDateString('vi-VN')}
-                                        </span>
+                                        <h4 className={`text-sm truncate max-w-[160px] ${isUnread ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>{displayName}</h4>
+                                        <span className={`text-[10px] ${isUnread ? 'text-pink-600 font-bold' : 'text-gray-400'}`}>{new Date(contact.updatedAt).toLocaleDateString('vi-VN')}</span>
                                     </div>
-
-                                    {/* Dòng 2: Tin nhắn mới nhất + Chấm xanh */}
                                     <div className="flex justify-between items-center">
                                         <div className={`text-xs truncate max-w-[85%] ${isUnread ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>
-                                            {lastMsg?.message ? (
-                                                <span>{lastMsg.message}</span>
-                                            ) : (
-                                                <span className="flex items-center gap-1 italic text-pink-500">
-                                                    <ImageIcon size={12}/> Hình ảnh
-                                                </span>
-                                            )}
+                                            {lastMsg?.message ? <span>{lastMsg.message}</span> : <span className="flex items-center gap-1 italic text-pink-500"><ImageIcon size={12}/> Hình ảnh</span>}
                                         </div>
-                                        
-                                        {/* Chấm xanh đơn giản nếu chưa đọc */}
                                         {isUnread && <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm animate-pulse"></span>}
                                     </div>
                                 </div>
@@ -221,7 +211,7 @@ const ContactManager = () => {
                     </div>
                 </div>
 
-                {/* --- CỘT PHẢI (GIỮ NGUYÊN) --- */}
+                {/* --- CỘT PHẢI --- */}
                 <div className="w-2/3 flex flex-col bg-gray-50">
                     {selectedTicket ? (
                         <>
@@ -231,24 +221,14 @@ const ContactManager = () => {
                                         {getAvatarLabel(selectedTicket.user_id)}
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-gray-800 text-base">
-                                            {getDisplayName(selectedTicket.user_id)}
-                                        </h3>
+                                        <h3 className="font-bold text-gray-800 text-base">{getDisplayName(selectedTicket.user_id)}</h3>
                                         <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
-                                            <span className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded">
-                                                <Mail size={10}/> {selectedTicket.user_id?.email || "No Email"}
-                                            </span>
-                                            {selectedTicket.user_id?.phone_number && (
-                                                <span className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded">
-                                                    <Phone size={10}/> {selectedTicket.user_id?.phone_number}
-                                                </span>
-                                            )}
+                                            <span className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded"><Mail size={10}/> {selectedTicket.user_id?.email || "No Email"}</span>
+                                            {selectedTicket.user_id?.phone_number && <span className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded"><Phone size={10}/> {selectedTicket.user_id?.phone_number}</span>}
                                         </div>
                                     </div>
                                 </div>
-                                <button onClick={() => handleDelete(selectedTicket._id)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition" title="Xóa hội thoại">
-                                    <Trash2 size={20}/>
-                                </button>
+                                <button onClick={() => handleDelete(selectedTicket._id)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition"><Trash2 size={20}/></button>
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-6 space-y-6">

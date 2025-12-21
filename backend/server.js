@@ -27,16 +27,18 @@ import { notFound, errorHandler } from "./middleware/error.middleware.js";
 const app = express();
 
 app.use(cors({
-  origin: "http://localhost:5173", // Nên để cụ thể domain frontend để an toàn cookie
+  origin: "http://localhost:5173", // URL frontend của bạn
   credentials: true
 }));
 
 app.use(express.json());
 app.use(cookieParser());
 
-// --- Cấu hình serve file upload ---
+// --- CẤU HÌNH ĐƯỜNG DẪN ẢNH (QUAN TRỌNG) ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Mở thư mục uploads ra public để frontend truy cập được
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // --- ĐĂNG KÝ CÁC ROUTE ---
@@ -45,18 +47,13 @@ app.use("/api/categories", categoryRoute);
 app.use("/api/products", productRoute);
 app.use("/api/cart", cartRoute);
 app.use("/api/orders", orderRoute);
-
-// 👇 SỬA LỖI 1: Thêm chữ 's' vào contacts để khớp với frontend
-app.use("/api/contacts", contactRoute); 
-
-// 👇 SỬA LỖI 2: Thêm route upload (bạn đã import nhưng quên dùng)
+app.use("/api/contacts", contactRoute); // Nhớ là số nhiều 'contacts'
 app.use("/api/upload", uploadRoute);
-
 app.use("/api/reviews", reviewRoute);
 app.use("/api/users", userRoutes);
 app.use("/api/banners", bannerRoute);
 
-// Not found & error handler
+// Error Handler
 app.use(notFound);
 app.use(errorHandler);
 

@@ -2,14 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { 
-  MapPin, Phone, User, CreditCard, Banknote, 
-  ChevronLeft, CheckCircle, Loader, Save 
+    MapPin, Phone, User, CreditCard, Banknote, 
+    ChevronLeft, CheckCircle, Loader, Save 
 } from 'lucide-react';
 
-const getImageUrl = (path) => {
-    if (!path) return 'https://via.placeholder.com/150?text=No+Image';
+// ✅ HÀM XỬ LÝ ẢNH (Phiên bản chuẩn, không bị lỗi crash)
+const getImageUrl = (input) => {
+    if (!input) return 'https://placehold.co/150?text=No+Image';
+
+    let path = input;
+    // Xử lý nếu là mảng hoặc object
+    if (Array.isArray(path)) path = path[0];
+    if (typeof path === 'object' && path !== null) path = path.url || path.image || ''; 
+    if (typeof path !== 'string') return 'https://placehold.co/150?text=Err+Type';
+
+    // Xử lý đường dẫn
     if (path.startsWith('http')) return path;
-    return `http://localhost:5000${path}`;
+    
+    let finalPath = path;
+    if (!finalPath.startsWith('/')) finalPath = `/${finalPath}`;
+    if (!finalPath.includes('/uploads/')) finalPath = `/uploads${finalPath}`;
+
+    return `http://localhost:5000${finalPath}`;
 };
 
 const CheckoutPage = () => {
@@ -29,29 +43,23 @@ const CheckoutPage = () => {
 
     const [paymentMethod, setPaymentMethod] = useState('cod'); 
 
-    // ✅ LOGIC MỚI: Tự động điền thông tin khi vào trang
+    // Tự động điền thông tin
     useEffect(() => {
-        // 1. Kiểm tra giỏ hàng
         if (!items || items.length === 0) {
             navigate('/cart');
             return;
         }
 
-        // 2. Thử lấy địa chỉ đã lưu lần mua trước
         const savedAddress = localStorage.getItem("SAVED_SHIPPING_INFO");
-        
         if (savedAddress) {
-            // Nếu có lịch sử mua hàng -> Điền form luôn
             setShippingInfo(JSON.parse(savedAddress));
         } else {
-            // Nếu chưa mua lần nào -> Thử lấy Tên từ thông tin đăng nhập (USER_INFO)
             const userInfo = localStorage.getItem("USER_INFO");
             if (userInfo) {
                 const user = JSON.parse(userInfo);
                 setShippingInfo(prev => ({
                     ...prev,
-                    fullName: user.name || '', // Lấy tên user
-                    // phone: user.phone || '' // Nếu backend lúc login trả về phone thì điền luôn
+                    fullName: user.name || '',
                 }));
             }
         }
@@ -78,18 +86,23 @@ const CheckoutPage = () => {
 
         setLoading(true);
 
-        // ✅ LOGIC MỚI: Lưu thông tin này lại cho lần sau mua tiếp
+        // Lưu thông tin cho lần sau
         localStorage.setItem("SAVED_SHIPPING_INFO", JSON.stringify(shippingInfo));
 
         const orderData = {
-            orderItems: items.map(item => ({
-                product: item.product._id || item.product,
-                name: item.name,
-                qty: item.qty,
-                price: item.price,
-                image: item.image,
-                attrs: item.attrs || {}
-            })),
+            orderItems: items.map(item => {
+                // ✅ LOGIC TÌM ẢNH ĐỂ LƯU VÀO ĐƠN HÀNG (Quan trọng)
+                const realImage = item.product?.image || item.product?.images?.[0] || item.image;
+
+                return {
+                    product: item.product._id || item.product, // ID sản phẩm
+                    name: item.name || item.product?.name,
+                    qty: item.qty,
+                    price: item.price,
+                    image: realImage, // Lưu đường dẫn ảnh chính xác
+                    attrs: item.attrs || {}
+                };
+            }),
             shippingAddress: {
                 fullName: shippingInfo.fullName,
                 phone: shippingInfo.phone,
@@ -109,9 +122,6 @@ const CheckoutPage = () => {
             });
             
             if (res.status === 201) {
-                // Xóa giỏ hàng trên frontend nếu cần (tuỳ logic app của bạn)
-                // localStorage.removeItem("CART_ITEMS"); 
-                
                 alert("Đặt hàng thành công!");
                 navigate(`/order/${res.data._id}`);
             }
@@ -146,7 +156,6 @@ const CheckoutPage = () => {
                                 <MapPin className="text-pink-600" /> Thông tin giao hàng
                             </h2>
                             
-                            {/* Gợi ý nhỏ cho người dùng */}
                             <div className="absolute top-6 right-6 text-xs text-gray-400 flex items-center gap-1">
                                 <Save size={12}/> Tự động lưu cho lần sau
                             </div>
@@ -195,15 +204,28 @@ const CheckoutPage = () => {
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-pink-100 sticky top-10">
                             <h3 className="font-bold text-xl mb-4 text-gray-800">Đơn hàng ({items.length} món)</h3>
                             <div className="max-h-60 overflow-y-auto mb-4 scrollbar-thin">
-                                {items.map((item, idx) => (
-                                    <div key={idx} className="flex gap-3 mb-4">
-                                        <img src={getImageUrl(item.image)} alt="" className="w-14 h-14 rounded-lg object-cover border" />
-                                        <div>
-                                            <h4 className="font-medium text-sm line-clamp-1">{item.name}</h4>
-                                            <div className="text-xs text-gray-500">x{item.qty} - <span className="text-pink-600 font-bold">{item.price.toLocaleString()}đ</span></div>
+                                {items.map((item, idx) => {
+                                    // ✅ LOGIC TÌM ẢNH ĐỂ HIỂN THỊ
+                                    const displayImage = item.product?.image || item.product?.images?.[0] || item.image;
+                                    const displayName = item.name || item.product?.name;
+
+                                    return (
+                                        <div key={idx} className="flex gap-3 mb-4">
+                                            {/* Ảnh sản phẩm */}
+                                            <img 
+                                                src={getImageUrl(displayImage)} 
+                                                alt={displayName} 
+                                                className="w-14 h-14 rounded-lg object-cover border"
+                                                onError={(e) => {e.target.onerror = null; e.target.src = 'https://placehold.co/150?text=No+Image'}} 
+                                            />
+                                            
+                                            <div>
+                                                <h4 className="font-medium text-sm line-clamp-1">{displayName}</h4>
+                                                <div className="text-xs text-gray-500">x{item.qty} - <span className="text-pink-600 font-bold">{item.price.toLocaleString()}đ</span></div>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                             <div className="border-t pt-4">
                                 <div className="flex justify-between items-center mb-6">

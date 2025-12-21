@@ -5,11 +5,41 @@ import {
     Trash2, Minus, Plus, ShoppingBag, ArrowRight, CreditCard, CheckSquare, Square, Zap 
 } from 'lucide-react';
 
-// --- HELPER ---
-const getImageUrl = (path) => {
-    if (!path) return 'https://via.placeholder.com/150?text=No+Image';
+// ✅ HÀM XỬ LÝ ẢNH (Đã fix lỗi crash "startsWith is not a function")
+const getImageUrl = (input) => {
+    // 1. Kiểm tra dữ liệu đầu vào
+    if (!input) return 'https://placehold.co/150?text=No+Image';
+
+    let path = input;
+
+    // 2. Nếu dữ liệu là Mảng (Array) -> Lấy phần tử đầu tiên
+    if (Array.isArray(path)) {
+        if (path.length > 0) path = path[0];
+        else return 'https://placehold.co/150?text=No+Image';
+    }
+
+    // 3. Nếu dữ liệu là Object (không phải null) -> Thử lấy thuộc tính url hoặc image
+    if (typeof path === 'object' && path !== null) {
+        path = path.url || path.image || ''; 
+    }
+
+    // 4. Ép kiểu về chuỗi để đảm bảo an toàn tuyệt đối
+    if (typeof path !== 'string') {
+        return 'https://placehold.co/150?text=Error+Type';
+    }
+
+    // --- Xử lý đường dẫn ---
     if (path.startsWith('http')) return path;
-    return `http://localhost:5000${path}`;
+
+    let finalPath = path;
+    if (!finalPath.startsWith('/')) {
+        finalPath = `/${finalPath}`;
+    }
+    if (!finalPath.includes('/uploads/')) {
+        finalPath = `/uploads${finalPath}`;
+    }
+
+    return `http://localhost:5000${finalPath}`;
 };
 
 const CartPage = () => {
@@ -23,7 +53,6 @@ const CartPage = () => {
     const location = useLocation();
     const getToken = () => localStorage.getItem("ACCESS_TOKEN");
 
-    // 🔥 CẤU HÌNH PHÍ SHIP CỐ ĐỊNH (Đồng bộ với Backend)
     const SHIPPING_FEE = 25000;
 
     const fetchCart = async () => {
@@ -48,11 +77,9 @@ const CartPage = () => {
         fetchCart();
     }, []);
 
-    // Tự động tick chọn sản phẩm nếu được chuyển từ nút "Mua lại"
     useEffect(() => {
         if (cart && cart.items.length > 0 && location.state?.newProductId) {
             const targetId = String(location.state.newProductId);
-            
             const exists = cart.items.some(item => {
                 const id = String(item.product?._id || item.product);
                 return id === targetId;
@@ -65,7 +92,6 @@ const CartPage = () => {
         }
     }, [cart, location.state]);
 
-    // Hàm lấy giá an toàn
     const getRealPrice = (item) => {
         if (!item.product) return 0;
         const p = item.product;
@@ -74,7 +100,6 @@ const CartPage = () => {
         return p.price || 0;
     };
 
-    // --- TÍNH TỔNG TIỀN HÀNG (TẠM TÍNH) ---
     const subTotal = useMemo(() => {
         if (!cart || !cart.items) return 0;
         return cart.items.reduce((total, item) => {
@@ -89,11 +114,8 @@ const CartPage = () => {
         }, 0);
     }, [cart, selectedItems]);
 
-    // --- TỔNG THANH TOÁN (Hàng + Ship) ---
-    // Chỉ cộng ship khi có ít nhất 1 sản phẩm được chọn
     const finalTotal = selectedItems.length > 0 ? subTotal + SHIPPING_FEE : 0;
 
-    // --- CHỌN 1 SẢN PHẨM ---
     const handleSelectItem = (rawId) => {
         const productId = String(rawId); 
         if (selectedItems.includes(productId)) {
@@ -103,7 +125,6 @@ const CartPage = () => {
         }
     };
 
-    // --- CHỌN TẤT CẢ ---
     const handleSelectAll = () => {
         if (!cart || !cart.items) return;
         
@@ -118,7 +139,6 @@ const CartPage = () => {
         }
     };
 
-    // --- NÚT MUA HÀNG ---
     const handleCheckout = () => {
         if (selectedItems.length === 0) {
             alert("Bạn chưa chọn sản phẩm nào để thanh toán!");
@@ -136,18 +156,16 @@ const CartPage = () => {
             price: getRealPrice(item)
         }));
 
-        // Truyền sang checkout: item, tạm tính (subTotal) và tổng (finalTotal)
         navigate('/checkout', { 
             state: { 
                 items: checkoutItemsWithRealPrice, 
                 subTotal: subTotal,
-                total: finalTotal, // Truyền tổng đã cộng ship
+                total: finalTotal, 
                 shippingFee: SHIPPING_FEE
             } 
         });
     };
 
-    // Xử lý nút tăng giảm
     const handleUpdateQty = async (index, newQty) => {
         if (updating) return;
 
@@ -269,6 +287,9 @@ const CartPage = () => {
                             const realPrice = getRealPrice(item);
                             const isFlashSale = item.product.isFlashSale;
 
+                            // LOGIC TÌM ẢNH (Ưu tiên image -> images[0] -> cart item image)
+                            const productImgPath = item.product?.image || item.product?.images?.[0] || item.image;
+
                             return (
                                 <div key={index} className={`bg-white p-4 rounded-2xl shadow-sm border transition-all flex gap-4 items-center ${isSelected ? 'border-pink-300 ring-1 ring-pink-100' : 'border-gray-100'}`}>
                                     
@@ -283,13 +304,21 @@ const CartPage = () => {
 
                                     {/* ẢNH SẢN PHẨM */}
                                     <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden border border-gray-100 relative">
-                                        <img src={getImageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" onError={(e) => {e.target.src = 'https://via.placeholder.com/150'}} />
+                                        <img 
+                                            src={getImageUrl(productImgPath)} 
+                                            alt={item.product.name} 
+                                            className="w-full h-full object-cover" 
+                                            onError={(e) => {
+                                                e.target.onerror = null; 
+                                                e.target.src = 'https://placehold.co/150?text=No+Image';
+                                            }} 
+                                        />
                                         {isFlashSale && <div className="absolute top-0 left-0 bg-yellow-400 text-red-600 text-[10px] font-bold px-1 rounded-br">Flash Sale</div>}
                                     </div>
 
                                     {/* THÔNG TIN */}
                                     <div className="flex-grow">
-                                        <h3 className="font-bold text-gray-800 text-lg mb-1">{item.name}</h3>
+                                        <h3 className="font-bold text-gray-800 text-lg mb-1">{item.product.name}</h3>
                                         
                                         <div className="flex items-center gap-2">
                                             <span className={`font-bold ${isFlashSale ? 'text-red-600' : 'text-pink-600'}`}>
@@ -343,13 +372,11 @@ const CartPage = () => {
                             <h3 className="font-bold text-xl mb-6 text-gray-800">Thông tin đơn hàng</h3>
                             
                             <div className="space-y-4 mb-6 border-b border-gray-100 pb-6">
-                                {/* Tạm tính */}
                                 <div className="flex justify-between text-gray-600">
                                     <span>Tạm tính ({selectedItems.length} món):</span>
                                     <span className="font-medium">{subTotal.toLocaleString()}đ</span>
                                 </div>
 
-                                {/* Phí ship hiển thị rõ ràng */}
                                 <div className="flex justify-between text-gray-600">
                                     <span>Phí vận chuyển:</span>
                                     <span className="font-medium">
@@ -358,7 +385,6 @@ const CartPage = () => {
                                 </div>
                             </div>
 
-                            {/* Tổng cộng */}
                             <div className="flex justify-between items-center mb-8">
                                 <span className="font-bold text-gray-800 text-lg">Tổng thanh toán:</span>
                                 <span className="font-bold text-2xl text-pink-600">{finalTotal.toLocaleString()}đ</span>
