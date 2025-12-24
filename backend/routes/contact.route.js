@@ -1,20 +1,32 @@
 import express from "express";
-import contactController from "../controllers/contact.controller.js"; 
-import { verifyToken, isAdmin } from "../middleware/auth.middleware.js"; 
-import upload from "../middleware/upload.js"; // ✅ Import upload
+import contactController from "../controllers/contact.controller.js";
+import { verifyToken, isAdmin } from "../middleware/auth.middleware.js";
+import upload from "../middleware/upload.js";
 
 const router = express.Router();
 
-// --- USER ROUTES ---
-router.post("/", verifyToken, contactController.sendContact);
+// USER
+router.post(
+    "/",
+    verifyToken,
+    upload.single("image"),
+    contactController.sendContact
+);
+
 router.get("/my-history", verifyToken, contactController.getMyContacts);
 
-// ✅ Route chat: Thêm upload.single('image') để nhận file
-router.put("/:id/chat", verifyToken, upload.single('image'), contactController.addMessage);
+router.put(
+    "/:id/chat",
+    verifyToken,
+    upload.single("image"),
+    contactController.addMessage
+);
 
-// --- ADMIN ROUTES ---
+// ADMIN
 router.get("/", verifyToken, isAdmin, contactController.getAllContacts);
-router.delete("/:id", verifyToken, isAdmin, contactController.deleteContact);
+
+// CẢ ADMIN & USER
+router.delete("/:id", verifyToken, contactController.deleteContact);
 router.put("/:id/read", verifyToken, contactController.markAsRead);
 
 export default router;
