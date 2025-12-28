@@ -61,7 +61,7 @@ EMAIL_PASS= 16_ky_tu
 
 ### 4️⃣ Chạy Back-end
 ```
-cd server
+cd backend
 npm run dev
 ```
 
@@ -69,7 +69,7 @@ npm run dev
 
 ### 5️⃣ Chạy Front-end
 ```
-cd client
+cd frontend
 npm run dev
 ```
 
